@@ -42,6 +42,14 @@ class Client {
   }
 }
 
+/**
+ * Testnet runs need wallets that hold USDC and whose keys the server can sign
+ * with; a simulated run works with any address.
+ */
+function walletFor(name: string): string {
+  return process.env[name] ?? Keypair.random().publicKey();
+}
+
 function step(message: string) {
   console.log(`\u2713 ${message}`);
 }
@@ -68,8 +76,8 @@ async function main() {
     propertyAddress: "Calle Mayor 10, Madrid",
     landlordName: "Bob Landlord",
     landlordEmail: `bob+${suffix}@example.com`,
-    tenantWallet: Keypair.random().publicKey(),
-    landlordWallet: Keypair.random().publicKey(),
+    tenantWallet: walletFor("DEMO_TENANT_WALLET"),
+    landlordWallet: walletFor("DEMO_LANDLORD_WALLET"),
     guaranteeAmount: "1000",
     rentAmount: "850",
     startDate: "2026-01-01",
