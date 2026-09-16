@@ -18,6 +18,7 @@ import {
 import { isChainConfigured, serverEnv } from "@/lib/env";
 import { amountsMatchTotal, formatUsdc, toStroops } from "@/lib/money";
 import {
+  assertMatchesCall,
   buildCallXdr,
   calls,
   platformSignAndSubmit,
@@ -416,7 +417,7 @@ export async function completeStep(
   signedXdr: string,
 ): Promise<StepOutcome> {
   const ctx = await loadContext(user, contractId);
-  planStep(ctx, step, payload);
+  assertMatchesCall(signedXdr, planStep(ctx, step, payload)());
 
   let result: SubmitResult;
   try {

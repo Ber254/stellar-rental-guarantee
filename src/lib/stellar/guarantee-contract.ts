@@ -144,6 +144,56 @@ export async function buildCallXdr(
   return prepared.toXDR();
 }
 
+/**
+ * A signed transaction arrives from the browser, so it is only trusted after
+ * checking that it invokes the escrow function the server planned, with the
+ * exact arguments it planned, and nothing else.
+ */
+export function assertMatchesCall(signedXdr: string, call: ContractCall) {
+  const tx = TransactionBuilder.fromXDR(
+    signedXdr,
+    networkConfig().networkPassphrase,
+  ) as Transaction;
+
+  const envelope = tx.toEnvelope();
+  if (envelope.type !== "envelopeTypeTx") {
+    throw new Error("Unsupported transaction envelope");
+  }
+
+  const operations = envelope.v1.tx.operations;
+  if (operations.length !== 1) {
+    throw new Error("The signed transaction must contain a single operation");
+  }
+
+  const body = operations[0].body;
+  if (body.type !== "invokeHostFunction") {
+    throw new Error("The signed transaction is not a contract invocation");
+  }
+  const hostFunction = body.invokeHostFunctionOp.hostFunction;
+  if (hostFunction.type !== "hostFunctionTypeInvokeContract") {
+    throw new Error("The signed transaction is not a contract invocation");
+  }
+
+  const invocation = hostFunction.invokeContract;
+  const contractId = Address.fromScAddress(invocation.contractAddress).toString();
+  if (contractId !== networkConfig().guaranteeContractId) {
+    throw new Error("The signed transaction targets another contract");
+  }
+  if (invocation.functionName.toString() !== call.method) {
+    throw new Error("The signed transaction calls another function");
+  }
+
+  const args = invocation.args;
+  const matches =
+    args.length === call.args.length &&
+    args.every(
+      (arg, index) => arg.toXdr("base64") === call.args[index].toXdr("base64"),
+    );
+  if (!matches) {
+    throw new Error("The signed transaction has unexpected arguments");
+  }
+}
+
 export type SubmitResult = {
   hash: string;
   ledger?: number;
