@@ -3,10 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { useI18n } from "./i18n-provider";
 import { Alert, Button } from "./ui";
 
 export function AcceptInvite({ token }: { token: string }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -17,7 +19,7 @@ export function AcceptInvite({ token }: { token: string }) {
     const body = await response.json().catch(() => ({}));
     setPending(false);
     if (!response.ok) {
-      setError(body.error ?? "Could not accept the invitation");
+      setError(body.error ?? t.invite.error);
       return;
     }
     router.push(`/contracts/${body.contract.id}`);
@@ -28,7 +30,7 @@ export function AcceptInvite({ token }: { token: string }) {
     <div className="space-y-3">
       {error && <Alert tone="error">{error}</Alert>}
       <Button onClick={accept} disabled={pending}>
-        {pending ? "Accepting…" : "Accept contract"}
+        {pending ? t.invite.accepting : t.invite.accept}
       </Button>
     </div>
   );

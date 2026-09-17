@@ -3,12 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { useI18n } from "./i18n-provider";
 import { Alert, Button, Card, Field, Input, Textarea } from "./ui";
 import { ConnectWalletButton, useWallet } from "./wallet";
 
 export function NewContractForm({ defaultWallet }: { defaultWallet: string }) {
   const router = useRouter();
   const { address } = useWallet();
+  const { t } = useI18n();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -26,7 +28,7 @@ export function NewContractForm({ defaultWallet }: { defaultWallet: string }) {
     setPending(false);
 
     if (!response.ok) {
-      setError(body.error ?? "Could not create the contract");
+      setError(body.error ?? t.newContract.error);
       return;
     }
     router.push(`/contracts/${body.contract.id}`);
@@ -35,24 +37,32 @@ export function NewContractForm({ defaultWallet }: { defaultWallet: string }) {
 
   return (
     <Card
-      title="New rental contract"
-      description="You are the tenant. The landlord confirms through an invitation link."
+      title={t.newContract.title}
+      description={t.newContract.description}
       actions={<ConnectWalletButton />}
     >
       <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
-        <Field label="Property name">
-          <Input name="propertyLabel" required placeholder="Apartment 4B" />
+        <Field label={t.newContract.propertyLabel}>
+          <Input
+            name="propertyLabel"
+            required
+            placeholder={t.newContract.propertyLabelPlaceholder}
+          />
         </Field>
-        <Field label="Address">
-          <Input name="propertyAddress" required placeholder="Calle Mayor 10, Madrid" />
+        <Field label={t.newContract.propertyAddress}>
+          <Input
+            name="propertyAddress"
+            required
+            placeholder={t.newContract.propertyAddressPlaceholder}
+          />
         </Field>
-        <Field label="Landlord name">
+        <Field label={t.newContract.landlordName}>
           <Input name="landlordName" required />
         </Field>
-        <Field label="Landlord email (optional)">
+        <Field label={t.newContract.landlordEmail}>
           <Input name="landlordEmail" type="email" />
         </Field>
-        <Field label="Your wallet (tenant)" hint="Stellar public key, starts with G">
+        <Field label={t.newContract.tenantWallet} hint={t.newContract.walletHint}>
           <Input
             name="tenantWallet"
             required
@@ -61,23 +71,23 @@ export function NewContractForm({ defaultWallet }: { defaultWallet: string }) {
             placeholder="G..."
           />
         </Field>
-        <Field label="Landlord wallet">
+        <Field label={t.newContract.landlordWallet}>
           <Input name="landlordWallet" required pattern="G[A-Z2-7]{55}" placeholder="G..." />
         </Field>
-        <Field label="Guarantee amount (USDC)">
+        <Field label={t.newContract.guaranteeAmount}>
           <Input name="guaranteeAmount" required inputMode="decimal" placeholder="1000" />
         </Field>
-        <Field label="Monthly rent (optional)">
+        <Field label={t.newContract.rentAmount}>
           <Input name="rentAmount" inputMode="decimal" placeholder="850" />
         </Field>
-        <Field label="Start date">
+        <Field label={t.newContract.startDate}>
           <Input name="startDate" type="date" required />
         </Field>
-        <Field label="End date">
+        <Field label={t.newContract.endDate}>
           <Input name="endDate" type="date" required />
         </Field>
         <div className="sm:col-span-2">
-          <Field label="Notes (optional)">
+          <Field label={t.newContract.notes}>
             <Textarea name="notes" rows={3} />
           </Field>
         </div>
@@ -88,7 +98,7 @@ export function NewContractForm({ defaultWallet }: { defaultWallet: string }) {
         )}
         <div className="sm:col-span-2">
           <Button type="submit" disabled={pending}>
-            {pending ? "Creating…" : "Create contract"}
+            {pending ? t.newContract.submitting : t.newContract.submit}
           </Button>
         </div>
       </form>

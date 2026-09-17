@@ -9,6 +9,7 @@ import {
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
+import { useI18n } from "./i18n-provider";
 import { Button } from "./ui";
 
 const shorten = (address: string) =>
@@ -88,10 +89,11 @@ export function useWallet(): WalletState {
 
 export function ConnectWalletButton() {
   const { address, available, connect, error } = useWallet();
+  const { t } = useI18n();
 
   if (address) {
     return (
-      <span className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 font-mono text-xs text-emerald-900">
+      <span className="rounded-card border border-line bg-ok-bg px-3 py-2 font-mono text-xs text-ok-fg">
         {shorten(address)}
       </span>
     );
@@ -100,14 +102,12 @@ export function ConnectWalletButton() {
   return (
     <div className="flex flex-col items-end gap-1">
       <Button type="button" variant="secondary" onClick={() => void connect()}>
-        Connect wallet
+        {t.wallet.connect}
       </Button>
       {!available && (
-        <span className="text-xs text-slate-500">
-          Freighter not detected — demo accounts still work.
-        </span>
+        <span className="text-xs text-muted">{t.wallet.notDetected}</span>
       )}
-      {error && <span className="text-xs text-rose-600">{error}</span>}
+      {error && <span className="text-xs text-danger-fg">{error}</span>}
     </div>
   );
 }

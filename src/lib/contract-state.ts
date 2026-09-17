@@ -13,19 +13,6 @@ const TRANSITIONS: Record<ContractStatus, ContractStatus[]> = {
   CANCELLED: [],
 };
 
-export const STATUS_LABELS: Record<ContractStatus, string> = {
-  DRAFT: "Draft",
-  PENDING_ACCEPTANCE: "Waiting for landlord",
-  AWAITING_FUNDING: "Waiting for deposit",
-  ACTIVE: "Protected",
-  RETURN_REQUESTED: "Return requested",
-  NEGOTIATION: "In negotiation",
-  AGREED: "Agreement reached",
-  RELEASED: "Funds released",
-  COMPLETED: "Completed",
-  CANCELLED: "Cancelled",
-};
-
 export function canTransition(from: ContractStatus, to: ContractStatus) {
   return TRANSITIONS[from].includes(to);
 }
