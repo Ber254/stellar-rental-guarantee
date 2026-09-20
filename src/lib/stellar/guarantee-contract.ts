@@ -16,23 +16,16 @@ import { networkConfig, rpcServer } from "./network";
 const BASE_FEE = "1000000"; // 0.1 XLM cap; the RPC refunds the unused resource fee.
 const TIMEOUT_SECONDS = 120;
 
-export const STATES = [
-  "Created",
-  "Funded",
-  "ReturnRequested",
-  "Negotiation",
-  "Agreed",
-  "Released",
-  "Cancelled",
-] as const;
+export const STATES = ["Pending", "Active", "Closed", "Cancelled"] as const;
 
 export type GuaranteeState = (typeof STATES)[number];
 
 export type OnChainGuarantee = {
-  tenant: string;
+  guarantor: string;
   landlord: string;
   token: string;
-  amount: bigint;
+  locked: bigint;
+  funded: bigint;
   endDate: bigint;
   state: GuaranteeState;
 };
@@ -47,24 +40,31 @@ const guaranteeContract = () => {
 
 const u64 = (value: bigint | number) =>
   nativeToScVal(BigInt(value), { type: "u64" });
+const u32 = (value: number) => nativeToScVal(value, { type: "u32" });
 const i128 = (value: bigint) => nativeToScVal(value, { type: "i128" });
 const addr = (value: string) => new Address(value).toScVal();
 
 type CallName =
   | "create_guarantee"
   | "fund_guarantee"
-  | "request_release"
-  | "propose_distribution"
-  | "accept_proposal"
-  | "release_funds"
-  | "cancel_guarantee";
+  | "cancel_guarantee"
+  | "propose_settlement"
+  | "accept_settlement"
+  | "reject_settlement"
+  | "execute_settlement"
+  | "return_to_guarantor"
+  | "propose_extension"
+  | "accept_extension"
+  | "cancel_extension"
+  | "set_treasury"
+  | "set_fee_bps";
 
 export type ContractCall = { method: CallName; args: xdr.ScVal[] };
 
 export const calls = {
   createGuarantee: (params: {
     id: bigint;
-    tenant: string;
+    guarantor: string;
     landlord: string;
     amount: bigint;
     endDate: bigint;
@@ -72,7 +72,7 @@ export const calls = {
     method: "create_guarantee",
     args: [
       u64(params.id),
-      addr(params.tenant),
+      addr(params.guarantor),
       addr(params.landlord),
       addr(requireUsdcContractId()),
       i128(params.amount),
@@ -83,35 +83,63 @@ export const calls = {
     method: "fund_guarantee",
     args: [u64(id)],
   }),
-  requestRelease: (id: bigint, caller: string): ContractCall => ({
-    method: "request_release",
-    args: [u64(id), addr(caller)],
-  }),
-  proposeDistribution: (params: {
-    id: bigint;
-    proposer: string;
-    toLandlord: bigint;
-    toTenant: bigint;
-  }): ContractCall => ({
-    method: "propose_distribution",
-    args: [
-      u64(params.id),
-      addr(params.proposer),
-      i128(params.toLandlord),
-      i128(params.toTenant),
-    ],
-  }),
-  acceptProposal: (id: bigint, acceptor: string): ContractCall => ({
-    method: "accept_proposal",
-    args: [u64(id), addr(acceptor)],
-  }),
-  releaseFunds: (id: bigint): ContractCall => ({
-    method: "release_funds",
-    args: [u64(id)],
-  }),
   cancelGuarantee: (id: bigint, caller: string): ContractCall => ({
     method: "cancel_guarantee",
     args: [u64(id), addr(caller)],
+  }),
+  proposeSettlement: (params: {
+    id: bigint;
+    proposer: string;
+    toGuarantor: bigint;
+    toLandlord: bigint;
+  }): ContractCall => ({
+    method: "propose_settlement",
+    args: [
+      u64(params.id),
+      addr(params.proposer),
+      i128(params.toGuarantor),
+      i128(params.toLandlord),
+    ],
+  }),
+  acceptSettlement: (id: bigint, acceptor: string): ContractCall => ({
+    method: "accept_settlement",
+    args: [u64(id), addr(acceptor)],
+  }),
+  rejectSettlement: (id: bigint, caller: string): ContractCall => ({
+    method: "reject_settlement",
+    args: [u64(id), addr(caller)],
+  }),
+  executeSettlement: (id: bigint): ContractCall => ({
+    method: "execute_settlement",
+    args: [u64(id)],
+  }),
+  returnToGuarantor: (id: bigint, amount: bigint): ContractCall => ({
+    method: "return_to_guarantor",
+    args: [u64(id), i128(amount)],
+  }),
+  proposeExtension: (params: {
+    id: bigint;
+    newEndDate: bigint;
+    newAmount: bigint;
+  }): ContractCall => ({
+    method: "propose_extension",
+    args: [u64(params.id), u64(params.newEndDate), i128(params.newAmount)],
+  }),
+  acceptExtension: (id: bigint): ContractCall => ({
+    method: "accept_extension",
+    args: [u64(id)],
+  }),
+  cancelExtension: (id: bigint, caller: string): ContractCall => ({
+    method: "cancel_extension",
+    args: [u64(id), addr(caller)],
+  }),
+  setTreasury: (treasury: string): ContractCall => ({
+    method: "set_treasury",
+    args: [addr(treasury)],
+  }),
+  setFeeBps: (bps: number): ContractCall => ({
+    method: "set_fee_bps",
+    args: [u32(bps)],
   }),
 };
 
@@ -284,27 +312,55 @@ export async function readGuarantee(
   if (!sim.result?.retval) return null;
 
   const raw = scValToNative(sim.result.retval) as {
-    tenant: string;
+    guarantor: string;
     landlord: string;
     token: string;
-    amount: bigint;
+    locked: bigint;
+    funded: bigint;
     end_date: bigint;
     state: number;
   };
 
   return {
-    tenant: raw.tenant,
+    guarantor: raw.guarantor,
     landlord: raw.landlord,
     token: raw.token,
-    amount: BigInt(raw.amount),
+    locked: BigInt(raw.locked),
+    funded: BigInt(raw.funded),
     endDate: BigInt(raw.end_date),
-    state: STATES[raw.state] ?? "Created",
+    state: STATES[raw.state] ?? "Pending",
   };
+}
+
+/** Fee (in stroops) the contract would charge on a given return amount. */
+export async function quoteFee(amount: bigint): Promise<bigint> {
+  const server = rpcServer();
+  const contract = guaranteeContract();
+
+  const secret = serverEnv.platformSecretKey();
+  if (!secret) throw new Error("PLATFORM_SECRET_KEY is not configured");
+  const reader = Keypair.fromSecret(secret);
+  const account = await server.getAccount(reader.publicKey());
+
+  const tx = new TransactionBuilder(account, {
+    fee: BASE_FEE,
+    networkPassphrase: networkConfig().networkPassphrase,
+  })
+    .addOperation(contract.call("quote_fee", i128(amount)))
+    .setTimeout(TIMEOUT_SECONDS)
+    .build();
+
+  const sim = await server.simulateTransaction(tx);
+  if (rpc.Api.isSimulationError(sim)) {
+    throw new Error("Failed to quote the fee on-chain");
+  }
+  if (!sim.result?.retval) throw new Error("Empty fee quote result");
+  return BigInt(scValToNative(sim.result.retval) as bigint);
 }
 
 /** RG-2026-000001 -> 2026000001 */
 export function onChainIdFromReference(reference: string): bigint {
-  const match = /^RG-(\d{4})-(\d{6})$/.exec(reference);
+  const match = /^[A-Z]{2,4}-(\d{4})-(\d{6})$/.exec(reference);
   if (!match) throw new Error(`Invalid contract reference: ${reference}`);
   return BigInt(`${match[1]}${match[2]}`);
 }

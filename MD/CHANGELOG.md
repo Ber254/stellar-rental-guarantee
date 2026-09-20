@@ -85,3 +85,73 @@ el historial de git.
    flujo de devolución/extensión, FAQ y "¿Cómo funciona?" por pantalla.
 6. Actualizar `SOROBAN_CONTRACT_ID` en `.env`/Vercel al contrato v2 una vez
    el cliente esté migrado.
+
+## 2026-09-20 (continuación — integración completa de la capa de aplicación)
+
+Se ejecutaron los 6 pasos del backlog anterior. Cambios principales (el
+detalle de cada archivo vive en el historial de git de la rama
+`claude/dreamy-curie-eopllt`):
+
+- **Cliente Stellar v2** (`src/lib/stellar/guarantee-contract.ts`): habla la
+  interfaz completa de `safexy-guarantee` (`create_guarantee`,
+  `fund_guarantee`, `cancel_guarantee`, `propose_settlement`,
+  `accept_settlement`, `reject_settlement`, `execute_settlement`,
+  `return_to_guarantor`, `propose_extension`, `accept_extension`,
+  `cancel_extension`, `quote_fee`).
+- **Esquema** (`src/lib/db/schema.ts` + `drizzle/0001_safexy_model_v2.sql`):
+  alias/`user_alias_history`, roles `guarantor`/`landlord`, propiedad
+  opcional, `REJECTED`/`EXPIRED` + motivo, tabla `extensions`,
+  `guarantees.locked_amount`/`funded_amount` (saldo vivo, no el monto fijo
+  original), `notifications.kind`. Aplicada y probada contra un Postgres real.
+- **`src/lib/business-rules.ts`**: único lugar para la comisión (0,05 %,
+  redondeo hacia arriba al stroop) y el umbral de expiración por falta de
+  aceptación (30 días desde el inicio del período).
+- **`src/lib/alias.ts`**: normalización, validación de formato, verificación
+  de disponibilidad y registro de historial al cambiar de alias.
+- **Servicios** (`src/lib/services/contracts.ts`, `chain.ts`): alta por
+  alias (ya no por link de invitación — se eliminó `/invite/[token]` y
+  `/api/invites/[token]`), aceptar/rechazar con motivo obligatorio,
+  expiración perezosa (`applyPendingExpiry`, corre en cada lectura), 11 pasos
+  de cadena (`create`, `fund`, `cancel`, `propose`, `accept`, `reject`,
+  `execute`, `return-unilateral`, `extend-propose`, `extend-accept`,
+  `extend-cancel`). Las devoluciones parciales, la devolución unilateral y
+  las extensiones se modelan reutilizando `proposals`/`agreements` (con un
+  `kind` nuevo) en vez de tablas separadas — ver `DATABASE.md`.
+- **API**: nuevas rutas `POST /api/contracts/[id]/accept`,
+  `GET /api/users/lookup`, `GET`/`PATCH /api/users/alias`; `reject` ahora
+  exige `{ reason }`; `chain` acepta los payloads de devolución unilateral y
+  extensión.
+- **UI**: alta con alias + apellido y verificación de disponibilidad en vivo
+  (registro y perfil), alta de garantía por alias con verificación previa del
+  locador, dashboard partido en "Garantías que di" / "Garantías a mi favor",
+  detalle de garantía con todas las acciones nuevas (solicitar devolución
+  total/parcial, aprobar/rechazar con motivo, devolución unilateral,
+  proponer/aceptar/retirar extensión), página de perfil (alias, wallet, monto
+  comprometido), página `/faq` con las 15 preguntas mínimas del brief, y un
+  `¿Cómo funciona?` colapsable en el detalle de la garantía (oculto por
+  defecto). Página `/notifications` + contador de no leídas en el header.
+- **Referencia**: prefijo de garantía `RG-` → `SFX-` (`SFX-2026-000123`).
+
+**Verificado end-to-end** contra un Postgres real y el servidor Next.js en
+modo simulado (sin contrato desplegado): registro, creación por alias,
+aceptar/rechazar con motivo, fondeo, dos devoluciones parciales sucesivas más
+una devolución unilateral que cierra la garantía, y una extensión con aumento
+seguida de una extensión con disminución — en todos los casos el saldo
+bloqueado y el estado terminan donde deberían. `npm run lint`,
+`npm run typecheck`, `npm test` (24/24) y `cargo test` (27/27) en verde.
+
+**Pendiente (no bloqueante, documentado para continuar):**
+
+1. Correr el mismo flujo contra el contrato v2 ya desplegado en testnet
+   (requiere cuentas fondeadas con USDC de prueba; ver `TESTNET.md`).
+2. `notifications.title`/`body` siguen en inglés y ya renderizados; falta
+   traducir por `kind`.
+3. El perfil muestra el monto comprometido en garantías, no el saldo real de
+   la wallet (requeriría consultar el balance USDC en Horizon).
+4. La expiración por falta de aceptación y por vencimiento de período es
+   perezosa (corre al leer una garantía); no hay todavía un job en segundo
+   plano para garantías que nadie vuelve a abrir.
+5. No se agregó un test de integración automatizado para los flujos de
+   devolución parcial/unilateral/extensión — se verificaron manualmente con
+   un script (`scripts/demo-flow.ts` cubre la negociación; el resto se probó
+   ad hoc y no quedó como test del repositorio).

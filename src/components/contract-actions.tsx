@@ -12,40 +12,53 @@ import { ConnectWalletButton, useWallet } from "./wallet";
 
 type PendingProposal = {
   id: string;
+  toGuarantor: string;
   toLandlord: string;
-  toTenant: string;
   mine: boolean;
+};
+
+type PendingExtension = {
+  proposedNewAmount: string;
+  proposedNewEndDate: string;
 };
 
 export function ContractActions({
   contractId,
   role,
   status,
-  amount,
+  landlordName,
+  locked,
   escrowRegistered,
   pendingProposal,
-  inviteUrl,
+  pendingExtension,
 }: {
   contractId: string;
   role: PartyRole;
   status: ContractStatus;
-  amount: string;
+  landlordName: string;
+  locked: string;
   escrowRegistered: boolean;
   pendingProposal: PendingProposal | null;
-  inviteUrl: string | null;
+  pendingExtension: PendingExtension | null;
 }) {
   const router = useRouter();
   const { sign } = useWallet();
   const { t } = useI18n();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [toLandlord, setToLandlord] = useState("");
+  const [toGuarantor, setToGuarantor] = useState("");
+  const [returnAmount, setReturnAmount] = useState("");
+  const [unilateralAmount, setUnilateralAmount] = useState("");
+  const [rejectReason, setRejectReason] = useState("");
+  const [showReject, setShowReject] = useState(false);
+  const [extendAmount, setExtendAmount] = useState("");
+  const [extendDate, setExtendDate] = useState("");
 
-  async function run(step: ChainStep, propose?: { toLandlord: string; toTenant: string }) {
+  async function run(step: ChainStep, extra: Record<string, unknown> = {}) {
     setBusy(step);
     setError(null);
     try {
-      const body: Record<string, unknown> = { step, propose };
+      const body: Record<string, unknown> = { step, ...extra };
       let response = await fetch(`/api/contracts/${contractId}/chain`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -72,91 +85,226 @@ export function ContractActions({
     }
   }
 
-  async function reject() {
-    setBusy("reject");
+  async function respondToInvitation(accept: boolean) {
+    setBusy(accept ? "accept-invite" : "reject-invite");
     setError(null);
-    const response = await fetch(`/api/contracts/${contractId}/reject`, {
-      method: "POST",
-    });
+    const response = await fetch(
+      `/api/contracts/${contractId}/${accept ? "accept" : "reject"}`,
+      {
+        method: "POST",
+        headers: accept ? undefined : { "content-type": "application/json" },
+        body: accept ? undefined : JSON.stringify({ reason: rejectReason }),
+      },
+    );
     const result = await response.json().catch(() => ({}));
     setBusy(null);
     if (!response.ok) {
-      setError(apiErrorMessage(t, result, t.actions.rejectFailed));
+      setError(apiErrorMessage(t, result, t.actions.failed));
       return;
     }
     router.refresh();
   }
 
-  const total = Number(amount);
-  const landlordShare = toLandlord === "" ? null : Number(toLandlord);
-  const tenantShare =
-    landlordShare === null || Number.isNaN(landlordShare)
+  const total = Number(locked);
+  const guarantorShare = toGuarantor === "" ? null : Number(toGuarantor);
+  const landlordShare =
+    guarantorShare === null || Number.isNaN(guarantorShare)
       ? null
-      : Math.round((total - landlordShare) * 1e7) / 1e7;
+      : Math.round((total - guarantorShare) * 1e7) / 1e7;
   const shareValid =
-    tenantShare !== null && tenantShare >= 0 && landlordShare !== null && landlordShare >= 0;
+    landlordShare !== null && landlordShare >= 0 && guarantorShare !== null && guarantorShare >= 0;
 
-  const negotiating = status === "RETURN_REQUESTED" || status === "NEGOTIATION";
+  const inNegotiation = status === "RETURN_REQUESTED" || status === "NEGOTIATION";
+  const isActive = status === "ACTIVE" || status === "EXPIRED";
 
   return (
     <Card title={t.actions.title} actions={<ConnectWalletButton />}>
-      <div className="space-y-4">
-        {status === "PENDING_ACCEPTANCE" && (
-          <div className="space-y-2">
-            <p className="text-sm text-muted">
-              {role === "TENANT"
-                ? t.actions.inviteTenant
-                : t.actions.inviteLandlord}
-            </p>
-            {inviteUrl && (
-              <code className="block overflow-x-auto rounded-card bg-surface-muted px-3 py-2 text-xs text-fg">
-                {inviteUrl}
-              </code>
+      <div className="space-y-5">
+        {status === "PENDING_ACCEPTANCE" && role === "LANDLORD" && (
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-3">
+              <Button disabled={busy !== null} onClick={() => respondToInvitation(true)}>
+                {busy === "accept-invite" ? t.actions.accepting : t.actions.accept}
+              </Button>
+              <Button
+                variant="danger"
+                disabled={busy !== null}
+                onClick={() => setShowReject((value) => !value)}
+              >
+                {t.actions.reject}
+              </Button>
+            </div>
+            {showReject && (
+              <div className="space-y-2">
+                <Field label={t.actions.rejectReasonLabel}>
+                  <Input
+                    value={rejectReason}
+                    onChange={(event) => setRejectReason(event.target.value)}
+                    placeholder={t.actions.rejectReasonPlaceholder}
+                  />
+                </Field>
+                <Button
+                  variant="danger"
+                  disabled={busy !== null || rejectReason.trim() === ""}
+                  onClick={() => respondToInvitation(false)}
+                >
+                  {busy === "reject-invite" ? t.actions.rejecting : t.actions.reject}
+                </Button>
+              </div>
             )}
           </div>
         )}
 
-        {status === "AWAITING_FUNDING" && role === "TENANT" && (
+        {status === "PENDING_ACCEPTANCE" && role === "GUARANTOR" && (
+          <p className="text-sm text-muted">
+            {interpolate(t.actions.waitingLandlord, { landlord: landlordName })}
+          </p>
+        )}
+
+        {status === "AWAITING_FUNDING" && role === "GUARANTOR" && (
           <div className="flex flex-wrap gap-3">
             <Button
               disabled={busy !== null || escrowRegistered}
               onClick={() => run("create")}
             >
-              {escrowRegistered
-                ? t.actions.escrowRegistered
-                : t.actions.registerEscrow}
+              {escrowRegistered ? t.actions.escrowRegistered : t.actions.registerEscrow}
             </Button>
             <Button disabled={busy !== null} onClick={() => run("fund")}>
               {busy === "fund" ? t.actions.locking : t.actions.fund}
+            </Button>
+            <Button variant="danger" disabled={busy !== null} onClick={() => run("cancel")}>
+              {busy === "cancel" ? t.actions.cancelling : t.actions.cancel}
             </Button>
           </div>
         )}
 
         {status === "AWAITING_FUNDING" && role === "LANDLORD" && (
-          <p className="text-sm text-muted">{t.actions.waitingTenant}</p>
+          <p className="text-sm text-muted">{t.actions.waitingGuarantorFunding}</p>
         )}
 
-        {status === "ACTIVE" && (
-          <div className="space-y-3">
-            <p className="text-sm text-muted">{t.actions.locked}</p>
-            {role === "TENANT" && (
-              <Button disabled={busy !== null} onClick={() => run("request-release")}>
-                {busy === "request-release"
-                  ? t.actions.sending
-                  : t.actions.requestReturn}
-              </Button>
+        {isActive && (
+          <div className="space-y-4">
+            <p className="text-sm text-muted">
+              {interpolate(t.actions.lockedAmount, { amount: locked })}
+            </p>
+            {status === "EXPIRED" && <Alert tone="warning">{t.actions.expired}</Alert>}
+
+            {role === "GUARANTOR" && (
+              <div className="space-y-2 rounded-card border border-line p-4">
+                <p className="text-sm font-medium text-fg">{t.actions.requestReturnTitle}</p>
+                <p className="text-xs text-muted">{t.actions.requestReturnHint}</p>
+                <Field label={t.actions.requestReturnAmount}>
+                  <Input
+                    inputMode="decimal"
+                    value={returnAmount}
+                    onChange={(event) => setReturnAmount(event.target.value)}
+                    placeholder={locked}
+                  />
+                </Field>
+                <Button
+                  disabled={busy !== null || !returnAmount}
+                  onClick={() =>
+                    run("propose", {
+                      propose: { toGuarantor: returnAmount, toLandlord: "0" },
+                    })
+                  }
+                >
+                  {busy === "propose" ? t.actions.sending : t.actions.requestReturnSubmit}
+                </Button>
+              </div>
+            )}
+
+            {role === "LANDLORD" && (
+              <div className="space-y-2 rounded-card border border-line p-4">
+                <p className="text-sm font-medium text-fg">{t.actions.returnUnilateralTitle}</p>
+                <p className="text-xs text-muted">{t.actions.returnUnilateralHint}</p>
+                <Field label={t.actions.requestReturnAmount}>
+                  <Input
+                    inputMode="decimal"
+                    value={unilateralAmount}
+                    onChange={(event) => setUnilateralAmount(event.target.value)}
+                    placeholder={locked}
+                  />
+                </Field>
+                <Button
+                  disabled={busy !== null || !unilateralAmount}
+                  onClick={() =>
+                    run("return-unilateral", { returnUnilateral: { amount: unilateralAmount } })
+                  }
+                >
+                  {busy === "return-unilateral"
+                    ? t.actions.sending
+                    : t.actions.returnUnilateralSubmit}
+                </Button>
+              </div>
+            )}
+
+            {role === "GUARANTOR" && !pendingExtension && (
+              <div className="space-y-2 rounded-card border border-line p-4">
+                <p className="text-sm font-medium text-fg">{t.actions.extendTitle}</p>
+                <p className="text-xs text-muted">{t.actions.extendHint}</p>
+                <Field label={t.actions.extendNewAmount}>
+                  <Input
+                    inputMode="decimal"
+                    value={extendAmount}
+                    onChange={(event) => setExtendAmount(event.target.value)}
+                  />
+                </Field>
+                <Field label={t.actions.extendNewEndDate}>
+                  <Input
+                    type="date"
+                    value={extendDate}
+                    onChange={(event) => setExtendDate(event.target.value)}
+                  />
+                </Field>
+                <Button
+                  disabled={busy !== null || !extendAmount || !extendDate}
+                  onClick={() =>
+                    run("extend-propose", {
+                      extension: { newAmount: extendAmount, newEndDate: extendDate },
+                    })
+                  }
+                >
+                  {busy === "extend-propose" ? t.actions.sending : t.actions.extendSubmit}
+                </Button>
+              </div>
             )}
           </div>
         )}
 
-        {negotiating && (
+        {pendingExtension && (
+          <div className="space-y-2 rounded-card border border-line bg-surface-muted p-4">
+            <p className="text-sm text-fg">
+              {interpolate(t.actions.extendPending, {
+                amount: pendingExtension.proposedNewAmount,
+                date: pendingExtension.proposedNewEndDate.slice(0, 10),
+              })}
+            </p>
+            <div className="flex gap-3">
+              {role === "LANDLORD" && (
+                <Button disabled={busy !== null} onClick={() => run("extend-accept")}>
+                  {busy === "extend-accept" ? t.actions.sending : t.actions.extendAccept}
+                </Button>
+              )}
+              <Button
+                variant="secondary"
+                disabled={busy !== null}
+                onClick={() => run("extend-cancel")}
+              >
+                {busy === "extend-cancel" ? t.actions.sending : t.actions.extendCancel}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {inNegotiation && (
           <div className="space-y-4">
             {pendingProposal && (
               <div className="rounded-card border border-line bg-surface-muted p-4 text-sm">
                 <p className="font-medium text-fg">
                   {interpolate(t.actions.openProposal, {
+                    guarantor: pendingProposal.toGuarantor,
                     landlord: pendingProposal.toLandlord,
-                    tenant: pendingProposal.toTenant,
                   })}
                 </p>
                 {pendingProposal.mine ? (
@@ -169,7 +317,7 @@ export function ContractActions({
                     <Button
                       variant="danger"
                       disabled={busy !== null}
-                      onClick={() => reject()}
+                      onClick={() => run("reject", { propose: { reason: rejectReason } })}
                     >
                       {t.actions.reject}
                     </Button>
@@ -179,36 +327,27 @@ export function ContractActions({
             )}
 
             <div className="space-y-2">
-              <Field
-                label={
-                  pendingProposal && !pendingProposal.mine
-                    ? t.actions.counterOffer
-                    : t.actions.proposeSplit
-                }
-                hint={interpolate(t.actions.splitHint, { amount })}
-              >
+              <Field label={t.actions.counterOffer} hint={t.actions.requestReturnHint}>
                 <Input
                   inputMode="decimal"
-                  placeholder={t.actions.toLandlordPlaceholder}
-                  value={toLandlord}
-                  onChange={(event) => setToLandlord(event.target.value)}
+                  placeholder={t.actions.counterOfferGuarantor}
+                  value={toGuarantor}
+                  onChange={(event) => setToGuarantor(event.target.value)}
                 />
               </Field>
               <p className="text-sm text-muted">
-                {interpolate(t.actions.toTenant, {
-                  amount: shareValid && tenantShare !== null ? tenantShare : "—",
-                })}
+                {t.actions.counterOfferLandlord}:{" "}
+                {shareValid && landlordShare !== null ? landlordShare : "—"}
               </p>
               <Button
                 disabled={busy !== null || !shareValid}
                 onClick={() =>
                   run("propose", {
-                    toLandlord: String(landlordShare),
-                    toTenant: String(tenantShare),
+                    propose: { toGuarantor: String(guarantorShare), toLandlord: String(landlordShare) },
                   })
                 }
               >
-                {busy === "propose" ? t.actions.sending : t.actions.sendProposal}
+                {busy === "propose" ? t.actions.sending : t.actions.sendCounter}
               </Button>
             </div>
           </div>
@@ -216,15 +355,21 @@ export function ContractActions({
 
         {status === "AGREED" && (
           <div className="space-y-3">
-            <p className="text-sm text-muted">{t.actions.agreed}</p>
-            <Button disabled={busy !== null} onClick={() => run("release")}>
-              {busy === "release" ? t.actions.releasing : t.actions.release}
+            <Button disabled={busy !== null} onClick={() => run("execute")}>
+              {busy === "execute" ? t.actions.executing : t.actions.execute}
             </Button>
           </div>
         )}
 
-        {(status === "RELEASED" || status === "COMPLETED") && (
+        {(status === "COMPLETED" || status === "RELEASED") && (
           <p className="text-sm text-muted">{t.actions.done}</p>
+        )}
+
+        {status === "REJECTED" && (
+          <p className="text-sm text-muted">{t.status.REJECTED}</p>
+        )}
+        {status === "CANCELLED" && (
+          <p className="text-sm text-muted">{t.status.CANCELLED}</p>
         )}
 
         {error && <Alert tone="error">{error}</Alert>}

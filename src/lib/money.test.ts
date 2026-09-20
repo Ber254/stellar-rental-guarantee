@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { amountsMatchTotal, formatUsdc, fromStroops, toStroops } from "./money";
+import { amountsWithinLocked, formatUsdc, fromStroops, toStroops } from "./money";
 
 describe("stroop conversion", () => {
   it("keeps 7 decimals exactly", () => {
@@ -26,15 +26,16 @@ describe("stroop conversion", () => {
   });
 });
 
-describe("distribution totals", () => {
-  it("accepts splits that add up to the locked amount", () => {
-    expect(amountsMatchTotal("300", "700", "1000")).toBe(true);
-    expect(amountsMatchTotal("0", "1000", "1000")).toBe(true);
-    expect(amountsMatchTotal("150.5", "849.5", "1000")).toBe(true);
+describe("amountsWithinLocked", () => {
+  it("accepts splits at or below the locked amount", () => {
+    expect(amountsWithinLocked("300", "700", "1000")).toBe(true);
+    expect(amountsWithinLocked("0", "1000", "1000")).toBe(true);
+    expect(amountsWithinLocked("150.5", "849.5", "1000")).toBe(true);
+    expect(amountsWithinLocked("300", "0", "1000")).toBe(true);
   });
 
-  it("rejects splits that do not", () => {
-    expect(amountsMatchTotal("300", "699.9999999", "1000")).toBe(false);
-    expect(amountsMatchTotal("1000", "1000", "1000")).toBe(false);
+  it("rejects splits that exceed the locked amount", () => {
+    expect(amountsWithinLocked("1000", "1000", "1000")).toBe(false);
+    expect(amountsWithinLocked("600", "500", "1000")).toBe(false);
   });
 });

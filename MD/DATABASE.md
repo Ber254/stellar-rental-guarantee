@@ -20,23 +20,39 @@ SQL en `drizzle/`, aplicadas con `npm run db:migrate`.
 
 Todos los montos son `numeric(20,7)`.
 
-## Cambios necesarios para SAFEXY
+## Cambios para SAFEXY (estado: implementados en `0001_safexy_model_v2.sql`)
 
-1. `users`: agregar `alias` (único, normalizado), `last_name`, `photo_url`.
-2. Nueva tabla `user_alias_history` (`user_id`, `alias`, `changed_at`) para que
-   cambiar el alias no rompa referencias históricas.
-3. `rental_contracts` → renombrar conceptualmente a **garantías**:
-   `tenant_id` → `guarantor_id`, `landlord_id` se mantiene, y las columnas de
-   propiedad (`property_id`, alquiler, notas) pasan a ser opcionales: SAFEXY no
-   pide inmueble para crear una garantía.
-4. Estados: agregar `REJECTED` y `EXPIRED` al enum, más `rejection_reason`.
-5. Nueva tabla `returns` (devolución total o parcial): quién la inicia, monto,
-   comisión aplicada, estado, motivo de rechazo.
-6. Nueva tabla `extensions`: nuevo período, nuevo monto, diferencia, estado.
-7. `notifications`: agregar `kind` tipado para poder traducir el aviso en vez de
-   guardar texto en inglés (hoy se guarda el string ya renderizado).
-8. Índices por `guarantor_id` y `landlord_id` (ya existen sus equivalentes) y
-   uno nuevo por `alias`.
+1. ~~`users`: agregar `alias`...~~ Hecho: `alias` (único, normalizado),
+   `last_name`, `photo_url`. `user_alias_history` (`user_id`, `alias`,
+   `changed_at`) guarda el alias anterior en cada cambio (`src/lib/alias.ts`).
+2. ~~`rental_contracts` → renombrar...~~ Hecho: `tenant_id` → `guarantor_id`,
+   `tenant_wallet` → `guarantor_wallet`, `landlord_name`/`landlord_email`
+   eliminados (la contraparte se resuelve por alias, no se tipea a mano),
+   `property_id` y `landlord_wallet` ahora nullable — SAFEXY no exige inmueble
+   y la wallet del locador se toma de su perfil al aceptar, no se pide al
+   crear.
+3. ~~Estados: agregar `REJECTED` y `EXPIRED`...~~ Hecho, más `rejection_reason`
+   y `rejected_at`.
+4. **Decisión distinta de la propuesta original:** no se creó una tabla
+   `returns` separada. Tanto la devolución negociada (solicitud + aprobación)
+   como la devolución unilateral del locador se modelan como filas de
+   `proposals`/`agreements` (con `kind`: `SETTLEMENT` o `UNILATERAL_RETURN`),
+   reutilizando la misma infraestructura de auditoría que ya tenía el
+   sistema — evita duplicar el concepto de "acuerdo de reparto".
+5. ~~Nueva tabla `extensions`~~ Hecho: `contract_id`, nuevo período, nuevo
+   monto, `top_up_amount`, `refund_amount`, estado.
+6. `notifications.kind` agregado (tipado, ver enum `notification_kind`), pero
+   `title`/`body` todavía se guardan como texto ya renderizado en inglés — la
+   traducción del aviso según `kind` queda pendiente.
+7. Índices por `guarantor_id` y `landlord_id`, más uno por `alias`. Hecho.
+
+Migración: `drizzle/0001_safexy_model_v2.sql`, generada con
+`npm run db:generate` tratando cada columna renombrada como
+columna-nueva-más-columna-vieja-eliminada (no como rename): no hay datos
+reales que proteger (demo/testnet), así que es la opción más simple y
+explícita. Aplicarla sobre una base con datos de demo previos requiere una
+base vacía o limpiar `rental_contracts`/`guarantees` antes, porque
+`guarantor_id` se agrega `NOT NULL` sin default.
 
 ## Reglas
 

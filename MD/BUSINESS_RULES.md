@@ -71,15 +71,17 @@ los servicios de la app todavía apuntan a la interfaz v1
 siguiente paso antes de poder ofrecer devoluciones parciales reales desde la
 UI.
 
-## Contradicciones con el comportamiento actual (a resolver)
+## Contradicciones con el comportamiento original (resueltas)
 
-| Regla SAFEXY | Comportamiento actual | Resolución |
-| --- | --- | --- |
-| Quien pone el dinero es el garante | Lo pone el `tenant` (inquilino) y lo crea él | Renombrar el rol; la mecánica coincide |
-| Contraparte por alias | Por token de invitación en un link | Buscar por alias; conservar el link como fallback |
-| Rechazo con motivo | No existe rechazo de la invitación | Nuevo estado `REJECTED` + motivo |
-| Expiración automática al mes | No existe | Job/chequeo perezoso al leer la garantía |
-| Comisión 0,05 % | No hay comisión | Nueva salida en la distribución |
-| Devolución unilateral del locador | Sólo el tenant puede pedir la devolución | Habilitar la solicitud al locador |
-| Extensión | No existe | Nuevo flujo (ver `GUARANTEES.md`) |
-| Estados humanos | Se muestran estados internos | Capa de presentación de estados |
+| Regla SAFEXY | Comportamiento original | Resolución | Estado |
+| --- | --- | --- | --- |
+| Quien pone el dinero es el garante | Lo pone el `tenant` (inquilino) y lo crea él | Rol renombrado a `guarantor` en DB, contrato y UI | Hecho |
+| Contraparte por alias | Por token de invitación en un link | `landlordAlias` resuelve a un `user_id` existente al crear; ya no hay invitación por link | Hecho |
+| Rechazo con motivo | No existe rechazo de la invitación | Estado `REJECTED` + `rejection_reason` obligatorio | Hecho |
+| Expiración automática al mes | No existe | Chequeo perezoso en `getContractForUser`/`listContracts` (`applyPendingExpiry`) | Hecho — falta un job en background para guarantías que nadie vuelve a abrir |
+| Comisión 0,05 % | No hay comisión | Cobrada on-chain (`fee_bps`) y reflejada off-chain (`agreements.fee_amount`) | Hecho |
+| Devolución unilateral del locador | Sólo el tenant puede pedir la devolución | `return_to_guarantor` / paso `return-unilateral` | Hecho |
+| Extensión | No existe | `propose_extension`/`accept_extension`/`cancel_extension`, con top-up o devolución de la diferencia | Hecho |
+| Estados humanos | Se muestran estados internos | `t.status[...]` en toda la UI, `STATUSES.md` como fuente de verdad | Hecho |
+| Notificaciones traducidas | `title`/`body` en inglés ya renderizado | Sigue en inglés; `notifications.kind` está tipado pero no se usa todavía para traducir | Pendiente |
+| Saldo disponible en el perfil | No existía | El perfil muestra el monto comprometido en garantías; el saldo de la wallet en sí no se consulta on-chain todavía | Parcial |

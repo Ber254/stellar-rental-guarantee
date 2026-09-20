@@ -1,7 +1,7 @@
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { ContractActions } from "@/components/contract-actions";
+import { HowItWorks } from "@/components/how-it-works";
 import { Alert, Card, Row, StatusBadge } from "@/components/ui";
 import { WalletProvider } from "@/components/wallet";
 import { getCurrentUser } from "@/lib/auth";
@@ -31,35 +31,41 @@ export default async function ContractPage({
   ]);
   const t = getDictionary(locale);
   const { contract, property, guarantee, role } = detail;
+  const locked = guarantee?.lockedAmount ?? guarantee?.amount ?? contract.guaranteeAmount;
 
   const pending = detail.proposals.find((proposal) => proposal.status === "PENDING");
-  const host = (await headers()).get("host");
-  const inviteUrl =
-    role === "TENANT" && contract.status === "PENDING_ACCEPTANCE" && host
-      ? `${host.startsWith("localhost") ? "http" : "https"}://${host}/invite/${contract.inviteToken}`
-      : null;
 
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-fg">{property.label}</h1>
+          <h1 className="text-2xl font-semibold text-fg">
+            {property?.label ?? contract.reference}
+          </h1>
           <p className="text-sm text-muted">
-            {contract.reference} · {property.address}
+            {contract.reference}
+            {property?.address ? ` · ${property.address}` : ""}
           </p>
         </div>
         <StatusBadge status={contract.status} label={t.status[contract.status]} />
       </div>
 
       {!isChainConfigured() && <Alert tone="warning">{t.contract.demoWarning}</Alert>}
+      {contract.status === "REJECTED" && contract.rejectionReason && (
+        <Alert tone="error">
+          {t.contract.rejectionReason}: {contract.rejectionReason}
+        </Alert>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card title={t.contract.detailsTitle}>
           <dl>
+            <Row label={t.contract.reference} value={contract.reference} />
             <Row
               label={t.contract.guarantee}
               value={formatUsdc(contract.guaranteeAmount)}
             />
+            <Row label={t.contract.locked} value={formatUsdc(locked)} />
             {contract.rentAmount && (
               <Row label={t.contract.rent} value={formatUsdc(contract.rentAmount)} />
             )}
@@ -67,23 +73,28 @@ export default async function ContractPage({
               label={t.contract.lease}
               value={`${formatDate(contract.startDate)} → ${formatDate(contract.endDate)}`}
             />
-            <Row label={t.contract.tenant} value={detail.tenant?.name ?? "—"} />
             <Row
-              label={t.contract.landlord}
-              value={detail.landlord?.name ?? contract.landlordName}
+              label={t.contract.guarantor}
+              value={detail.guarantor ? `@${detail.guarantor.alias ?? detail.guarantor.name}` : "—"}
             />
             <Row
-              label={t.contract.tenantWallet}
+              label={t.contract.landlord}
+              value={detail.landlord ? `@${detail.landlord.alias ?? detail.landlord.name}` : "—"}
+            />
+            <Row
+              label={t.contract.guarantorWallet}
               value={
-                <span className="font-mono">{shortenAddress(contract.tenantWallet)}</span>
+                <span className="font-mono">{shortenAddress(contract.guarantorWallet)}</span>
               }
             />
             <Row
               label={t.contract.landlordWallet}
               value={
-                <span className="font-mono">
-                  {shortenAddress(contract.landlordWallet)}
-                </span>
+                contract.landlordWallet ? (
+                  <span className="font-mono">{shortenAddress(contract.landlordWallet)}</span>
+                ) : (
+                  <span className="text-muted">{t.contract.landlordNoWallet}</span>
+                )
               }
             />
             <Row
@@ -91,6 +102,9 @@ export default async function ContractPage({
               value={guarantee ? t.guaranteeStatus[guarantee.status] : "—"}
             />
           </dl>
+          <div className="mt-4">
+            <HowItWorks label={t.contract.howItWorks} body={t.contract.howItWorksBody} />
+          </div>
         </Card>
 
         <WalletProvider networkPassphrase={networkConfig().networkPassphrase}>
@@ -98,19 +112,27 @@ export default async function ContractPage({
             contractId={contract.id}
             role={role}
             status={contract.status}
-            amount={contract.guaranteeAmount}
+            landlordName={detail.landlord?.name ?? "—"}
+            locked={locked}
             escrowRegistered={Boolean(guarantee?.sorobanContractId) || !isChainConfigured()}
             pendingProposal={
               pending
                 ? {
                     id: pending.id,
+                    toGuarantor: pending.toGuarantor,
                     toLandlord: pending.toLandlord,
-                    toTenant: pending.toTenant,
                     mine: pending.proposedBy === user.id,
                   }
                 : null
             }
-            inviteUrl={inviteUrl}
+            pendingExtension={
+              detail.pendingExtension
+                ? {
+                    proposedNewAmount: detail.pendingExtension.proposedNewAmount,
+                    proposedNewEndDate: detail.pendingExtension.proposedNewEndDate.toISOString(),
+                  }
+                : null
+            }
           />
         </WalletProvider>
       </div>
@@ -128,13 +150,13 @@ export default async function ContractPage({
               >
                 <span>
                   {t.contract.round} {proposal.round} ·{" "}
-                  {proposal.proposedByRole === "TENANT"
-                    ? t.dashboard.roleTenant
+                  {proposal.proposedByRole === "GUARANTOR"
+                    ? t.dashboard.roleGuarantor
                     : t.dashboard.roleLandlord}
                   :{" "}
                   {interpolate(t.contract.splitLine, {
+                    guarantor: formatUsdc(proposal.toGuarantor),
                     landlord: formatUsdc(proposal.toLandlord),
-                    tenant: formatUsdc(proposal.toTenant),
                   })}
                 </span>
                 <span className="text-xs font-medium uppercase text-muted">

@@ -36,10 +36,15 @@ export function formatUsdc(amount: string | number): string {
   })} USDC`;
 }
 
-export function amountsMatchTotal(
+/**
+ * A settlement may pay out less than what is locked — the remainder stays
+ * locked and the guarantee stays active — but never more.
+ */
+export function amountsWithinLocked(
+  toGuarantor: string,
   toLandlord: string,
-  toTenant: string,
-  total: string,
+  locked: string,
 ): boolean {
-  return toStroops(toLandlord) + toStroops(toTenant) === toStroops(total);
+  const total = toStroops(toGuarantor) + toStroops(toLandlord);
+  return total >= 0n && total <= toStroops(locked);
 }

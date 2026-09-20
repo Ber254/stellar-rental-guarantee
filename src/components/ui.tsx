@@ -37,10 +37,12 @@ const STATUS_TONES: Record<ContractStatus, string> = {
   ACTIVE: "bg-ok-bg text-ok-fg",
   RETURN_REQUESTED: "bg-info-bg text-info-fg",
   NEGOTIATION: "bg-info-bg text-info-fg",
-  AGREED: "bg-neutral-bg text-neutral-fg",
-  RELEASED: "bg-ok-bg text-ok-fg",
+  AGREED: "bg-info-bg text-info-fg",
+  RELEASED: "bg-accent text-accent-fg",
   COMPLETED: "bg-accent text-accent-fg",
   CANCELLED: "bg-danger-bg text-danger-fg",
+  REJECTED: "bg-danger-bg text-danger-fg",
+  EXPIRED: "bg-warn-bg text-warn-fg",
 };
 
 export function StatusBadge({

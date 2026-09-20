@@ -85,7 +85,15 @@ acordada y ejecutada → 299,85 USDC al garante, 0,15 USDC a la tesorería y
 
 ## Pendientes
 
-1. Actualizar el cliente TypeScript (`src/lib/stellar/`) a la interfaz v2.
+1. ~~Actualizar el cliente TypeScript (`src/lib/stellar/`) a la interfaz v2.~~
+   Hecho: `guarantee-contract.ts` habla `create_guarantee` (roles
+   `guarantor`/`landlord`), `propose_settlement`/`accept_settlement`/
+   `reject_settlement`/`execute_settlement`, `return_to_guarantor`,
+   `propose_extension`/`accept_extension`/`cancel_extension` y `quote_fee`.
+   Verificado end-to-end (creación, aceptación, fondeo, devoluciones
+   parciales sucesivas, devolución unilateral, extensión con aumento y con
+   disminución) contra un Postgres real en modo simulado; falta correrlo una
+   vez contra el contrato desplegado en testnet con cuentas fondeadas.
 2. Actualizar `SOROBAN_CONTRACT_ID` en Vercel al contrato nuevo.
 3. `PLATFORM_SECRET_KEY` está vacía en producción, así que el pago final corre
    simulado hasta que se cargue una cuenta de testnet.

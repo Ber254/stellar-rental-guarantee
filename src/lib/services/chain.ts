@@ -1,11 +1,13 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
+import { feeForStroops } from "@/lib/business-rules";
 import { assertTransition } from "@/lib/contract-state";
 import { db } from "@/lib/db";
 import {
   agreements,
   blockchainTransactions,
+  extensions,
   guarantees,
   proposalActions,
   proposals,
@@ -16,7 +18,7 @@ import {
   type User,
 } from "@/lib/db/schema";
 import { isChainConfigured, serverEnv } from "@/lib/env";
-import { amountsMatchTotal, formatUsdc, toStroops } from "@/lib/money";
+import { amountsWithinLocked, formatUsdc, fromStroops, toStroops } from "@/lib/money";
 import {
   assertMatchesCall,
   buildCallXdr,
@@ -29,28 +31,48 @@ import {
 } from "@/lib/stellar/guarantee-contract";
 import { demoSecretFor } from "@/lib/stellar/demo-signer";
 import { badRequest, forbidden, notFound } from "./errors";
-import { notify, roleOf } from "./contracts";
+import { notify, restingStatus, roleOf } from "./contracts";
 
 export const CHAIN_STEPS = [
   "create",
   "fund",
-  "request-release",
+  "cancel",
   "propose",
   "accept",
-  "release",
+  "reject",
+  "execute",
+  "return-unilateral",
+  "extend-propose",
+  "extend-accept",
+  "extend-cancel",
 ] as const;
 
 export type ChainStep = (typeof CHAIN_STEPS)[number];
 
 export const proposePayloadSchema = z.object({
+  toGuarantor: z.string().regex(/^\d+(\.\d{1,7})?$/),
   toLandlord: z.string().regex(/^\d+(\.\d{1,7})?$/),
-  toTenant: z.string().regex(/^\d+(\.\d{1,7})?$/),
   reason: z.string().max(500).optional().or(z.literal("")),
 });
 
-export type ProposePayload = z.infer<typeof proposePayloadSchema>;
+export const returnUnilateralPayloadSchema = z.object({
+  amount: z.string().regex(/^\d+(\.\d{1,7})?$/),
+});
 
-export type StepPayload = { propose?: ProposePayload };
+export const extensionPayloadSchema = z.object({
+  newEndDate: z.iso.date(),
+  newAmount: z.string().regex(/^\d+(\.\d{1,7})?$/),
+});
+
+export type ProposePayload = z.infer<typeof proposePayloadSchema>;
+export type ReturnUnilateralPayload = z.infer<typeof returnUnilateralPayloadSchema>;
+export type ExtensionPayload = z.infer<typeof extensionPayloadSchema>;
+
+export type StepPayload = {
+  propose?: ProposePayload;
+  returnUnilateral?: ReturnUnilateralPayload;
+  extension?: ExtensionPayload;
+};
 
 type Context = {
   user: User;
@@ -68,16 +90,18 @@ export type StepOutcome =
 const TX_KIND: Record<ChainStep, (typeof blockchainTransactions.kind.enumValues)[number]> = {
   create: "CREATE_GUARANTEE",
   fund: "FUND_GUARANTEE",
-  "request-release": "REQUEST_RELEASE",
-  propose: "PROPOSE_DISTRIBUTION",
-  accept: "ACCEPT_PROPOSAL",
-  release: "RELEASE_FUNDS",
+  cancel: "CANCEL_GUARANTEE",
+  propose: "PROPOSE_SETTLEMENT",
+  accept: "ACCEPT_SETTLEMENT",
+  reject: "REJECT_SETTLEMENT",
+  execute: "EXECUTE_SETTLEMENT",
+  "return-unilateral": "RETURN_TO_GUARANTOR",
+  "extend-propose": "PROPOSE_EXTENSION",
+  "extend-accept": "ACCEPT_EXTENSION",
+  "extend-cancel": "CANCEL_EXTENSION",
 };
 
-async function loadContext(
-  user: User,
-  contractId: string,
-): Promise<Context> {
+async function loadContext(user: User, contractId: string): Promise<Context> {
   const [row] = await db
     .select({ contract: rentalContracts, guarantee: guarantees })
     .from(rentalContracts)
@@ -95,96 +119,8 @@ async function loadContext(
     role,
     onChainId: BigInt(row.guarantee.onChainId),
     wallet:
-      role === "TENANT" ? row.contract.tenantWallet : row.contract.landlordWallet,
+      role === "GUARANTOR" ? row.contract.guarantorWallet : (row.contract.landlordWallet ?? ""),
   };
-}
-
-/**
- * Validates the step against the off-chain state machine and returns a builder
- * for the matching contract call. The call itself is only built when the chain
- * is configured, so demo mode never needs on-chain addresses.
- */
-function planStep(
-  ctx: Context,
-  step: ChainStep,
-  payload: StepPayload,
-): () => ContractCall {
-  const { contract, role, onChainId } = ctx;
-  const amount = toStroops(contract.guaranteeAmount);
-
-  switch (step) {
-    case "create": {
-      if (role !== "TENANT") throw forbidden("Only the tenant registers the guarantee", "onlyTenantRegisters");
-      if (contract.status !== "AWAITING_FUNDING") {
-        throw badRequest("The contract is not waiting for the deposit", "notAwaitingDeposit");
-      }
-      if (ctx.guarantee.status !== "CREATED") {
-        throw badRequest("The guarantee is already registered on Stellar", "guaranteeAlreadyRegistered");
-      }
-      return () =>
-        calls.createGuarantee({
-          id: onChainId,
-          tenant: contract.tenantWallet,
-          landlord: contract.landlordWallet,
-          amount,
-          endDate: BigInt(Math.floor(contract.endDate.getTime() / 1000)),
-        });
-    }
-    case "fund": {
-      if (role !== "TENANT") throw forbidden("Only the tenant can fund the guarantee", "onlyTenantFunds");
-      if (contract.status !== "AWAITING_FUNDING") {
-        throw badRequest("The contract is not waiting for the deposit", "notAwaitingDeposit");
-      }
-      return () => calls.fundGuarantee(onChainId);
-    }
-    case "request-release": {
-      if (role !== "TENANT") {
-        throw forbidden("Only the tenant can request the guarantee back", "onlyTenantRequests");
-      }
-      assertTransition(contract.status, "RETURN_REQUESTED");
-      return () => calls.requestRelease(onChainId, ctx.wallet);
-    }
-    case "propose": {
-      const proposal = proposePayloadSchema.parse(payload.propose);
-      if (
-        !amountsMatchTotal(
-          proposal.toLandlord,
-          proposal.toTenant,
-          contract.guaranteeAmount,
-        )
-      ) {
-        throw badRequest(
-          `The split must add up to ${formatUsdc(contract.guaranteeAmount)}`,
-          "splitMismatch",
-        );
-      }
-      if (
-        contract.status !== "RETURN_REQUESTED" &&
-        contract.status !== "NEGOTIATION"
-      ) {
-        throw badRequest("There is no open return request for this contract", "noOpenReturnRequest");
-      }
-      return () =>
-        calls.proposeDistribution({
-          id: onChainId,
-          proposer: ctx.wallet,
-          toLandlord: toStroops(proposal.toLandlord),
-          toTenant: toStroops(proposal.toTenant),
-        });
-    }
-    case "accept": {
-      if (contract.status !== "NEGOTIATION") {
-        throw badRequest("There is no proposal to accept", "noProposalToAccept");
-      }
-      return () => calls.acceptProposal(onChainId, ctx.wallet);
-    }
-    case "release": {
-      if (contract.status !== "AGREED") {
-        throw badRequest("The parties have not agreed on a distribution yet", "noAgreementYet");
-      }
-      return () => calls.releaseFunds(onChainId);
-    }
-  }
 }
 
 async function openProposal(contractId: string) {
@@ -197,15 +133,144 @@ async function openProposal(contractId: string) {
   return proposal ?? null;
 }
 
+async function pendingExtension(contractId: string) {
+  const [row] = await db
+    .select()
+    .from(extensions)
+    .where(and(eq(extensions.contractId, contractId), eq(extensions.status, "PENDING")));
+  return row ?? null;
+}
+
+const lockedOf = (guarantee: Guarantee) => guarantee.lockedAmount ?? guarantee.amount;
+
+/**
+ * Validates the step against the off-chain state machine and returns a builder
+ * for the matching contract call. The call itself is only built when the chain
+ * is configured, so demo mode never needs on-chain addresses.
+ */
+function planStep(ctx: Context, step: ChainStep, payload: StepPayload): () => ContractCall {
+  const { contract, guarantee, role, onChainId } = ctx;
+  const amount = toStroops(contract.guaranteeAmount);
+  const locked = lockedOf(guarantee);
+  const inNegotiation = contract.status === "RETURN_REQUESTED" || contract.status === "NEGOTIATION";
+
+  switch (step) {
+    case "create": {
+      if (role !== "GUARANTOR") throw forbidden("Only the guarantor registers the guarantee", "onlyGuarantorRegisters");
+      if (contract.status !== "AWAITING_FUNDING") {
+        throw badRequest("The guarantee is not waiting for the deposit", "notAwaitingDeposit");
+      }
+      if (guarantee.status !== "CREATED") {
+        throw badRequest("The guarantee is already registered on Stellar", "guaranteeAlreadyRegistered");
+      }
+      if (!contract.landlordWallet) {
+        throw badRequest("The landlord has not connected a wallet yet", "notAwaitingDeposit");
+      }
+      return () =>
+        calls.createGuarantee({
+          id: onChainId,
+          guarantor: contract.guarantorWallet,
+          landlord: contract.landlordWallet!,
+          amount,
+          endDate: BigInt(Math.floor(contract.endDate.getTime() / 1000)),
+        });
+    }
+    case "fund": {
+      if (role !== "GUARANTOR") throw forbidden("Only the guarantor can fund the guarantee", "onlyGuarantorFunds");
+      if (contract.status !== "AWAITING_FUNDING") {
+        throw badRequest("The guarantee is not waiting for the deposit", "notAwaitingDeposit");
+      }
+      return () => calls.fundGuarantee(onChainId);
+    }
+    case "cancel": {
+      if (contract.status !== "AWAITING_FUNDING") {
+        throw badRequest("Only a guarantee that has not been funded yet can be cancelled", "notPending");
+      }
+      return () => calls.cancelGuarantee(onChainId, ctx.wallet);
+    }
+    case "propose": {
+      const proposal = proposePayloadSchema.parse(payload.propose);
+      if (!amountsWithinLocked(proposal.toGuarantor, proposal.toLandlord, locked)) {
+        throw badRequest(`The split cannot exceed ${formatUsdc(locked)}`, "exceedsLocked");
+      }
+      if (contract.status !== "ACTIVE" && contract.status !== "EXPIRED" && !inNegotiation) {
+        throw badRequest("There is nothing to negotiate right now", "notActive");
+      }
+      return () =>
+        calls.proposeSettlement({
+          id: onChainId,
+          proposer: ctx.wallet,
+          toGuarantor: toStroops(proposal.toGuarantor),
+          toLandlord: toStroops(proposal.toLandlord),
+        });
+    }
+    case "accept": {
+      if (!inNegotiation) throw badRequest("There is no proposal to accept", "noSettlementToAccept");
+      return () => calls.acceptSettlement(onChainId, ctx.wallet);
+    }
+    case "reject": {
+      if (!inNegotiation) throw badRequest("There is no proposal to reject", "noSettlementToReject");
+      return () => calls.rejectSettlement(onChainId, ctx.wallet);
+    }
+    case "execute": {
+      if (contract.status !== "AGREED") {
+        throw badRequest("The parties have not agreed on a distribution yet", "noAgreementYet");
+      }
+      return () => calls.executeSettlement(onChainId);
+    }
+    case "return-unilateral": {
+      if (role !== "LANDLORD") throw forbidden("Only the landlord can return funds unilaterally", "onlyLandlordReturns");
+      if (contract.status !== "ACTIVE" && contract.status !== "EXPIRED") {
+        throw badRequest("The guarantee is not active", "notActive");
+      }
+      const { amount: returnAmount } = returnUnilateralPayloadSchema.parse(payload.returnUnilateral);
+      if (!amountsWithinLocked(returnAmount, "0", locked)) {
+        throw badRequest(`The amount cannot exceed ${formatUsdc(locked)}`, "exceedsLocked");
+      }
+      return () => calls.returnToGuarantor(onChainId, toStroops(returnAmount));
+    }
+    case "extend-propose": {
+      if (role !== "GUARANTOR") throw forbidden("Only the guarantor can propose an extension", "onlyGuarantorExtends");
+      if (contract.status !== "ACTIVE" && contract.status !== "EXPIRED") {
+        throw badRequest("The guarantee is not active", "notActive");
+      }
+      const ext = extensionPayloadSchema.parse(payload.extension);
+      return () =>
+        calls.proposeExtension({
+          id: onChainId,
+          newEndDate: BigInt(Math.floor(new Date(ext.newEndDate).getTime() / 1000)),
+          newAmount: toStroops(ext.newAmount),
+        });
+    }
+    case "extend-accept": {
+      if (role !== "LANDLORD") throw forbidden("Only the landlord can accept an extension", "onlyLandlordAcceptsExtension");
+      return () => calls.acceptExtension(onChainId);
+    }
+    case "extend-cancel": {
+      return () => calls.cancelExtension(onChainId, ctx.wallet);
+    }
+  }
+}
+
+async function setStatus(contract: RentalContract, status: RentalContract["status"]) {
+  if (contract.status === status) return;
+  assertTransition(contract.status, status);
+  await db
+    .update(rentalContracts)
+    .set({ status, updatedAt: new Date() })
+    .where(eq(rentalContracts.id, contract.id));
+}
+
 async function applyStep(
   ctx: Context,
   step: ChainStep,
   payload: StepPayload,
   tx: { hash: string | null; ledger?: number; simulated: boolean },
 ) {
-  const { contract, user, role } = ctx;
+  const { contract, guarantee, user, role } = ctx;
   const now = new Date();
-  const other = role === "TENANT" ? contract.landlordId : contract.tenantId;
+  const other =
+    role === "GUARANTOR" ? contract.landlordId : contract.guarantorId;
 
   await db.insert(blockchainTransactions).values({
     contractId: contract.id,
@@ -215,8 +280,7 @@ async function applyStep(
     ledger: tx.ledger ?? null,
     network: serverEnv.stellarNetwork(),
     simulated: tx.simulated,
-    amount: step === "release" ? contract.guaranteeAmount : null,
-    sourceAddress: step === "release" ? null : ctx.wallet,
+    sourceAddress: ctx.wallet || null,
   });
 
   switch (step) {
@@ -227,30 +291,42 @@ async function applyStep(
           sorobanContractId: serverEnv.sorobanContractId() || null,
           simulated: tx.simulated,
         })
-        .where(eq(guarantees.id, ctx.guarantee.id));
+        .where(eq(guarantees.id, guarantee.id));
       break;
     }
     case "fund": {
       await db
         .update(guarantees)
-        .set({ status: "LOCKED", fundedAt: now, simulated: tx.simulated })
-        .where(eq(guarantees.id, ctx.guarantee.id));
+        .set({
+          status: "LOCKED",
+          fundedAt: now,
+          lockedAmount: contract.guaranteeAmount,
+          fundedAmount: contract.guaranteeAmount,
+          simulated: tx.simulated,
+        })
+        .where(eq(guarantees.id, guarantee.id));
       await setStatus(contract, "ACTIVE");
       await notify(
         other,
         contract.id,
+        "GUARANTEE_FUNDED",
         "Guarantee funded",
         `${formatUsdc(contract.guaranteeAmount)} are locked for ${contract.reference}.`,
       );
       break;
     }
-    case "request-release": {
-      await setStatus(contract, "RETURN_REQUESTED");
+    case "cancel": {
+      await db
+        .update(guarantees)
+        .set({ status: "CANCELLED", lockedAmount: "0" })
+        .where(eq(guarantees.id, guarantee.id));
+      await setStatus(contract, "CANCELLED");
       await notify(
         other,
         contract.id,
-        "Return requested",
-        `${user.name} asked for the guarantee of ${contract.reference} to be returned.`,
+        "GUARANTEE_REJECTED",
+        "Guarantee cancelled",
+        `${user.name} cancelled ${contract.reference} before it was funded.`,
       );
       break;
     }
@@ -267,10 +343,11 @@ async function applyStep(
         .insert(proposals)
         .values({
           contractId: contract.id,
+          kind: "SETTLEMENT",
           proposedBy: user.id,
           proposedByRole: role,
+          toGuarantor: proposal.toGuarantor,
           toLandlord: proposal.toLandlord,
-          toTenant: proposal.toTenant,
           reason: proposal.reason || null,
           round: (current?.round ?? 0) + 1,
         })
@@ -282,25 +359,25 @@ async function applyStep(
         action: current ? "COUNTER" : "PROPOSE",
         note: proposal.reason || null,
       });
-      if (contract.status !== "NEGOTIATION") {
-        await setStatus(contract, "NEGOTIATION");
-      }
+      const nextStatus =
+        contract.status === "RETURN_REQUESTED" || contract.status === "NEGOTIATION"
+          ? "NEGOTIATION"
+          : "RETURN_REQUESTED";
+      await setStatus(contract, nextStatus);
       await notify(
         other,
         contract.id,
-        "New proposal",
-        `${user.name} proposes ${formatUsdc(proposal.toLandlord)} to the landlord and ${formatUsdc(
-          proposal.toTenant,
-        )} to the tenant.`,
+        "RETURN_REQUESTED",
+        "Return proposal",
+        `${user.name} proposes ${formatUsdc(proposal.toGuarantor)} back and ${formatUsdc(
+          proposal.toLandlord,
+        )} to the landlord.`,
       );
       break;
     }
     case "accept": {
       const current = await openProposal(contract.id);
-      if (!current) throw badRequest("There is no proposal to accept", "noProposalToAccept");
-      if (current.proposedBy === user.id) {
-        throw badRequest("You cannot accept your own proposal", "cannotAcceptOwnProposal");
-      }
+      if (!current) throw badRequest("There is no proposal to accept", "noSettlementToAccept");
       await db
         .update(proposals)
         .set({ status: "ACCEPTED" })
@@ -311,57 +388,218 @@ async function applyStep(
         actorRole: role,
         action: "ACCEPT",
       });
-      await db
-        .insert(agreements)
-        .values({
-          contractId: contract.id,
-          proposalId: current.id,
-          toLandlord: current.toLandlord,
-          toTenant: current.toTenant,
-          tenantAcceptedAt:
-            role === "TENANT" || current.proposedByRole === "TENANT" ? now : null,
-          landlordAcceptedAt:
-            role === "LANDLORD" || current.proposedByRole === "LANDLORD"
-              ? now
-              : null,
-        })
-        .onConflictDoNothing();
+      const fee = feeForStroops(toStroops(current.toGuarantor));
+      await db.insert(agreements).values({
+        contractId: contract.id,
+        proposalId: current.id,
+        toGuarantor: current.toGuarantor,
+        toLandlord: current.toLandlord,
+        feeAmount: fromStroops(fee),
+        guarantorAcceptedAt: role === "GUARANTOR" || current.proposedByRole === "GUARANTOR" ? now : null,
+        landlordAcceptedAt: role === "LANDLORD" || current.proposedByRole === "LANDLORD" ? now : null,
+      });
       await setStatus(contract, "AGREED");
       await notify(
         other,
         contract.id,
+        "RETURN_APPROVED",
         "Agreement reached",
         `${user.name} accepted the distribution for ${contract.reference}.`,
       );
       break;
     }
-    case "release": {
+    case "reject": {
+      const current = await openProposal(contract.id);
+      if (!current) throw badRequest("There is no proposal to reject", "noSettlementToReject");
+      const reason = proposePayloadSchema.shape.reason.optional().parse(payload.propose?.reason);
       await db
-        .update(guarantees)
-        .set({ status: "RELEASED", releasedAt: now })
-        .where(eq(guarantees.id, ctx.guarantee.id));
-      await setStatus(contract, "RELEASED");
-      await setStatus({ ...contract, status: "RELEASED" }, "COMPLETED");
+        .update(proposals)
+        .set({ status: "REJECTED" })
+        .where(eq(proposals.id, current.id));
+      await db.insert(proposalActions).values({
+        proposalId: current.id,
+        actorId: user.id,
+        actorRole: role,
+        action: "REJECT",
+        note: reason || null,
+      });
+      await setStatus(contract, restingStatus(contract));
       await notify(
         other,
         contract.id,
+        "RETURN_REJECTED",
+        "Proposal rejected",
+        reason
+          ? `${user.name} rejected the proposal for ${contract.reference}: ${reason}`
+          : `${user.name} rejected the proposal for ${contract.reference}.`,
+      );
+      break;
+    }
+    case "execute": {
+      const [agreement] = await db
+        .select()
+        .from(agreements)
+        .where(and(eq(agreements.contractId, contract.id), sql`${agreements.executedAt} is null`))
+        .orderBy(desc(agreements.createdAt));
+      const paidOut = toStroops(agreement?.toGuarantor ?? "0") + toStroops(agreement?.toLandlord ?? "0");
+      const newLocked = lockedOf(guarantee) ? toStroops(lockedOf(guarantee)) - paidOut : 0n;
+
+      await db
+        .update(guarantees)
+        .set({
+          lockedAmount: fromStroops(newLocked),
+          status: newLocked <= 0n ? "RELEASED" : "LOCKED",
+          releasedAt: newLocked <= 0n ? now : null,
+        })
+        .where(eq(guarantees.id, guarantee.id));
+
+      if (agreement) {
+        await db
+          .update(agreements)
+          .set({ executedAt: now })
+          .where(eq(agreements.id, agreement.id));
+      }
+
+      await setStatus(contract, newLocked <= 0n ? "COMPLETED" : restingStatus(contract));
+      await notify(
+        other,
+        contract.id,
+        "RETURN_APPROVED",
         "Funds released",
-        `The guarantee of ${contract.reference} was distributed on Stellar.`,
+        `The agreed split for ${contract.reference} was paid out on Stellar.`,
+      );
+      break;
+    }
+    case "return-unilateral": {
+      const { amount: returnAmount } = returnUnilateralPayloadSchema.parse(payload.returnUnilateral);
+      const amountStroops = toStroops(returnAmount);
+      const fee = feeForStroops(amountStroops);
+      const newLocked = toStroops(lockedOf(guarantee)) - amountStroops;
+
+      const [created] = await db
+        .insert(proposals)
+        .values({
+          contractId: contract.id,
+          kind: "UNILATERAL_RETURN",
+          proposedBy: user.id,
+          proposedByRole: "LANDLORD",
+          toGuarantor: returnAmount,
+          toLandlord: "0",
+          status: "ACCEPTED",
+        })
+        .returning();
+      await db.insert(agreements).values({
+        contractId: contract.id,
+        proposalId: created.id,
+        toGuarantor: returnAmount,
+        toLandlord: "0",
+        feeAmount: fromStroops(fee),
+        landlordAcceptedAt: now,
+        executedAt: now,
+      });
+
+      await db
+        .update(guarantees)
+        .set({
+          lockedAmount: fromStroops(newLocked),
+          status: newLocked <= 0n ? "RELEASED" : "LOCKED",
+          releasedAt: newLocked <= 0n ? now : null,
+        })
+        .where(eq(guarantees.id, guarantee.id));
+
+      await setStatus(contract, newLocked <= 0n ? "COMPLETED" : restingStatus(contract));
+      await notify(
+        other,
+        contract.id,
+        "RETURN_UNILATERAL",
+        "Funds returned",
+        `${user.name} returned ${formatUsdc(returnAmount)} unilaterally for ${contract.reference}.`,
+      );
+      break;
+    }
+    case "extend-propose": {
+      const ext = extensionPayloadSchema.parse(payload.extension);
+      const newAmountStroops = toStroops(ext.newAmount);
+      const lockedStroops = toStroops(lockedOf(guarantee));
+      const topUp = newAmountStroops > lockedStroops ? newAmountStroops - lockedStroops : 0n;
+
+      await db.insert(extensions).values({
+        contractId: contract.id,
+        proposedNewEndDate: new Date(ext.newEndDate),
+        proposedNewAmount: ext.newAmount,
+        topUpAmount: fromStroops(topUp),
+      });
+
+      await notify(
+        other,
+        contract.id,
+        "EXTENSION_PROPOSED",
+        "Extension proposed",
+        `${user.name} proposes extending ${contract.reference} to ${ext.newAmount} USDC until ${ext.newEndDate}.`,
+      );
+      break;
+    }
+    case "extend-accept": {
+      const pending = await pendingExtension(contract.id);
+      if (!pending) throw badRequest("There is no extension to accept", "noExtensionPending");
+
+      const lockedStroops = toStroops(lockedOf(guarantee));
+      const newAmountStroops = toStroops(pending.proposedNewAmount);
+      const topUp = toStroops(pending.topUpAmount);
+      const refund = newAmountStroops < lockedStroops ? lockedStroops - newAmountStroops : 0n;
+      const newLocked = lockedStroops - refund + topUp;
+      const newFunded = toStroops(guarantee.fundedAmount ?? guarantee.amount) + topUp;
+
+      await db
+        .update(extensions)
+        .set({ status: "ACCEPTED", refundAmount: fromStroops(refund), resolvedAt: now })
+        .where(eq(extensions.id, pending.id));
+
+      await db
+        .update(guarantees)
+        .set({
+          lockedAmount: fromStroops(newLocked),
+          fundedAmount: fromStroops(newFunded),
+          status: newLocked <= 0n ? "RELEASED" : "LOCKED",
+        })
+        .where(eq(guarantees.id, guarantee.id));
+
+      await db
+        .update(rentalContracts)
+        .set({
+          endDate: pending.proposedNewEndDate,
+          guaranteeAmount: pending.proposedNewAmount,
+          updatedAt: now,
+        })
+        .where(eq(rentalContracts.id, contract.id));
+
+      await setStatus({ ...contract }, newLocked <= 0n ? "COMPLETED" : "ACTIVE");
+      await notify(
+        other,
+        contract.id,
+        "EXTENSION_ACCEPTED",
+        "Extension accepted",
+        `${user.name} accepted the extension for ${contract.reference}.`,
+      );
+      break;
+    }
+    case "extend-cancel": {
+      const pending = await pendingExtension(contract.id);
+      if (!pending) throw badRequest("There is no extension to cancel", "noExtensionPending");
+      await db
+        .update(extensions)
+        .set({ status: "CANCELLED", resolvedAt: now })
+        .where(eq(extensions.id, pending.id));
+      await notify(
+        other,
+        contract.id,
+        "EXTENSION_CANCELLED",
+        "Extension cancelled",
+        `${user.name} withdrew the proposed extension for ${contract.reference}.`,
       );
       break;
     }
   }
-}
-
-async function setStatus(
-  contract: RentalContract,
-  status: RentalContract["status"],
-) {
-  assertTransition(contract.status, status);
-  await db
-    .update(rentalContracts)
-    .set({ status, updatedAt: new Date() })
-    .where(eq(rentalContracts.id, contract.id));
 }
 
 /**
@@ -384,7 +622,7 @@ export async function startStep(
 
   const call = buildCall();
 
-  if (step === "release") {
+  if (step === "execute") {
     const result = await platformSignAndSubmit(call);
     await applyStep(ctx, step, payload, {
       hash: result.hash,
@@ -441,31 +679,4 @@ export async function completeStep(
     simulated: false,
   });
   return { mode: "done", step, txHash: result.hash, simulated: false };
-}
-
-/** Rejecting a proposal is off-chain: the chain keeps the last proposal until replaced. */
-export async function rejectProposal(user: User, contractId: string) {
-  const ctx = await loadContext(user, contractId);
-  const current = await openProposal(contractId);
-  if (!current) throw badRequest("There is no proposal to reject", "noProposalToReject");
-  if (current.proposedBy === user.id) {
-    throw badRequest("You cannot reject your own proposal", "cannotRejectOwnProposal");
-  }
-
-  await db
-    .update(proposals)
-    .set({ status: "REJECTED" })
-    .where(eq(proposals.id, current.id));
-  await db.insert(proposalActions).values({
-    proposalId: current.id,
-    actorId: user.id,
-    actorRole: ctx.role,
-    action: "REJECT",
-  });
-  await notify(
-    ctx.role === "TENANT" ? ctx.contract.landlordId : ctx.contract.tenantId,
-    contractId,
-    "Proposal rejected",
-    `${user.name} rejected the proposal for ${ctx.contract.reference}.`,
-  );
 }

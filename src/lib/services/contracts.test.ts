@@ -5,35 +5,33 @@ process.env.DATABASE_URL ??= "postgres://user:pass@localhost:5432/test";
 
 const { createContractSchema, roleOf } = await import("./contracts");
 
-const tenantWallet = "GCKMGALLPD64ZMCQBQIO36AZGKMN3MC4A7KK6Q6SEDYGWLZNJGTYR4PX";
-const landlordWallet = "GCK2VCWIM74HGMQ7CMXNLJBJKUA5EL62IQFVLR4CXZ35TJOILK2XO6D2";
+const guarantorWallet = "GCKMGALLPD64ZMCQBQIO36AZGKMN3MC4A7KK6Q6SEDYGWLZNJGTYR4PX";
 
 const valid = {
+  landlordAlias: "bob.landlord",
   propertyLabel: "Apartment 4B",
   propertyAddress: "Calle Mayor 10, Madrid",
-  landlordName: "Bob Landlord",
-  landlordEmail: "bob@example.com",
-  tenantWallet,
-  landlordWallet,
+  guarantorWallet,
   guaranteeAmount: "1000",
   startDate: "2026-01-01",
   endDate: "2026-12-31",
 };
 
 describe("createContractSchema", () => {
-  it("accepts a well formed contract", () => {
+  it("accepts a well formed guarantee", () => {
     expect(createContractSchema.parse(valid).guaranteeAmount).toBe("1000");
+  });
+
+  it("accepts a guarantee with no property", () => {
+    const { propertyLabel, propertyAddress, ...rest } = valid;
+    void propertyLabel;
+    void propertyAddress;
+    expect(createContractSchema.parse(rest).guaranteeAmount).toBe("1000");
   });
 
   it("rejects wallets that are not Stellar addresses", () => {
     expect(() =>
-      createContractSchema.parse({ ...valid, tenantWallet: "0xabc" }),
-    ).toThrow();
-  });
-
-  it("rejects the same wallet for both parties", () => {
-    expect(() =>
-      createContractSchema.parse({ ...valid, landlordWallet: tenantWallet }),
+      createContractSchema.parse({ ...valid, guarantorWallet: "0xabc" }),
     ).toThrow();
   });
 
@@ -53,10 +51,10 @@ describe("createContractSchema", () => {
 });
 
 describe("roleOf", () => {
-  const contract = { tenantId: "t-1", landlordId: "l-1" };
+  const contract = { guarantorId: "g-1", landlordId: "l-1" };
 
   it("resolves both parties", () => {
-    expect(roleOf(contract as never, "t-1")).toBe("TENANT");
+    expect(roleOf(contract as never, "g-1")).toBe("GUARANTOR");
     expect(roleOf(contract as never, "l-1")).toBe("LANDLORD");
   });
 

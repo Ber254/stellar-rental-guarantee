@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { apiErrorMessage } from "@/lib/i18n";
 
@@ -14,7 +14,31 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const { t } = useI18n();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [alias, setAlias] = useState("");
+  const [aliasCheck, setAliasCheck] = useState<{ alias: string; available: boolean } | null>(null);
   const isRegister = mode === "register";
+  const aliasTooShort = alias.trim().length < 3;
+  const aliasStatus: "idle" | "checking" | "available" | "unavailable" = aliasTooShort
+    ? "idle"
+    : aliasCheck?.alias !== alias
+      ? "checking"
+      : aliasCheck.available
+        ? "available"
+        : "unavailable";
+
+  useEffect(() => {
+    if (!isRegister || aliasTooShort) return;
+    let cancelled = false;
+    const timeout = setTimeout(async () => {
+      const response = await fetch(`/api/users/alias?alias=${encodeURIComponent(alias)}`);
+      const body = await response.json().catch(() => ({}));
+      if (!cancelled) setAliasCheck({ alias, available: Boolean(body.available) });
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [alias, isRegister, aliasTooShort]);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -48,7 +72,37 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         <form onSubmit={onSubmit} className="space-y-4">
           {isRegister && (
             <Field label={t.auth.name}>
-              <Input name="name" required minLength={2} autoComplete="name" />
+              <Input name="name" required minLength={2} autoComplete="given-name" />
+            </Field>
+          )}
+          {isRegister && (
+            <Field label={t.auth.lastName}>
+              <Input name="lastName" autoComplete="family-name" />
+            </Field>
+          )}
+          {isRegister && (
+            <Field
+              label={t.auth.alias}
+              hint={
+                aliasStatus === "checking"
+                  ? t.profile.aliasChecking
+                  : aliasStatus === "available"
+                    ? t.profile.aliasAvailable
+                    : aliasStatus === "unavailable"
+                      ? t.profile.aliasUnavailable
+                      : t.auth.aliasHint
+              }
+            >
+              <Input
+                name="alias"
+                required
+                minLength={3}
+                maxLength={30}
+                pattern="[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])?"
+                placeholder={t.auth.aliasPlaceholder}
+                value={alias}
+                onChange={(event) => setAlias(event.target.value.toLowerCase())}
+              />
             </Field>
           )}
           <Field label={t.auth.email}>

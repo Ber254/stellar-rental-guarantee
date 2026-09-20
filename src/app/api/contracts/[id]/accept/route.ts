@@ -1,15 +1,15 @@
 import { errorResponse } from "@/lib/api";
 import { requireUser } from "@/lib/auth";
-import { acceptInvitation } from "@/lib/services/contracts";
+import { acceptContract } from "@/lib/services/contracts";
 
 export async function POST(
   _request: Request,
-  { params }: { params: Promise<{ token: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await requireUser();
-    const { token } = await params;
-    const contract = await acceptInvitation(user, token);
+    const { id } = await params;
+    const contract = await acceptContract(user, id);
     return Response.json({ contract });
   } catch (error) {
     return errorResponse(error);
