@@ -6,7 +6,7 @@ nothing and never judges who is right: it records the agreement and executes it
 on Stellar.
 
 - Money: USDC on **Stellar testnet** (no custom token, no mainnet in the MVP).
-- Escrow: Soroban smart contract in `contracts/rental-guarantee`.
+- Escrow: Soroban smart contract in `contracts/safexy-guarantee`.
 - App: Next.js (App Router) + TypeScript + Tailwind, PostgreSQL/Neon via Drizzle.
 
 ## Lifecycle
@@ -29,7 +29,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full picture and
 Next.js app (UI + route handlers)
   |- Drizzle ORM -> PostgreSQL (Neon in production)
   |- Freighter (user signs) / platform key (release only)
-  '- Soroban RPC -> rental-guarantee contract -> USDC SAC
+  '- Soroban RPC -> safexy-guarantee contract -> USDC SAC
 ```
 
 ## Local development

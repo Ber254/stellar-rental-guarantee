@@ -8,13 +8,14 @@ the `wasm32v1-none` Rust target.
 ## 1. Accounts
 
 ```bash
-for k in platform issuer tenant landlord; do
+for k in platform issuer treasury tenant landlord; do
   stellar keys generate $k --network testnet --fund
 done
 ```
 
-`platform` submits releases, `issuer` mints the test USDC, `tenant`/`landlord`
-are the demo parties (real users bring their own Freighter wallet).
+`platform` submits payouts and administers the contract, `issuer` mints the test
+USDC, `treasury` collects the SAFEXY fee, `tenant`/`landlord` are the demo
+parties (real users bring their own Freighter wallet).
 
 ## 2. Test USDC
 
@@ -23,7 +24,7 @@ ISSUER=$(stellar keys address issuer)
 stellar contract asset deploy --asset USDC:$ISSUER --source issuer --network testnet
 # -> STELLAR_USDC_CONTRACT_ID
 
-for k in tenant landlord; do
+for k in tenant landlord treasury; do
   stellar tx new change-trust --line USDC:$ISSUER --source $k --network testnet
 done
 
@@ -35,14 +36,26 @@ Amounts are in stroops: 7 decimals, so `1 USDC = 10_000_000`.
 
 ## 3. Escrow contract
 
+The constructor takes the admin, the fee treasury and the fee in basis points
+(`5` = 0.05%).
+
 ```bash
 cd contracts
 stellar contract build
 stellar contract deploy \
-  --wasm target/wasm32v1-none/release/rental_guarantee.wasm \
-  --source platform --network testnet
+  --wasm target/wasm32v1-none/release/safexy_guarantee.wasm \
+  --source platform --network testnet \
+  -- --admin $(stellar keys address platform) \
+     --treasury $(stellar keys address treasury) \
+     --fee_bps 5
 # -> SOROBAN_CONTRACT_ID
 ```
+
+Current testnet deployment:
+`CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV`
+(replaces `CB3JG5IKMHKUXRPYSZ6UVOEJ42XXGQQOIBK4UBYEPYSTGBZ6IIAN5LAH`, see
+`MD/BLOCKCHAIN.md`). The treasury account needs the USDC trustline to receive
+the fee.
 
 ## 4. App configuration
 

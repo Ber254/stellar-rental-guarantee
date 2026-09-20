@@ -1,12 +1,15 @@
 # BLOCKCHAIN — Stellar, Soroban y USDC
 
-## Qué está funcionando hoy (no romper)
+## Estado actual
 
 - Red **Stellar testnet**; RPC `https://soroban-testnet.stellar.org`,
   Horizon `https://horizon-testnet.stellar.org`.
-- Contrato de escrow Soroban desplegado:
-  `CB3JG5IKMHKUXRPYSZ6UVOEJ42XXGQQOIBK4UBYEPYSTGBZ6IIAN5LAH`
-  (fuente en `contracts/rental-guarantee/`, 16 tests Rust).
+- Contrato SAFEXY v2 desplegado:
+  `CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV`
+  (fuente en `contracts/safexy-guarantee/`, 27 tests Rust).
+- Tesorería de comisiones (testnet):
+  `GCBM7PFRWJ2OKMPI26FK22ZKBNLR4UUSR76NY52FU2JWOAEV4LNKUZUB`; admin:
+  `GCE5L7F7MMVFCQ3VQL3QWWTHKY6UWB3KO6FL65EDJFD2TL5UE42MWM7V`; `fee_bps = 5`.
 - USDC de prueba: emisor
   `GANGXXPF6NIMUR4CEAFIOCSQH7UMQRCA5SQN6N3NCXOPGMNXNVD5X3HA`,
   SAC `CDSA3RLXVDMZGV6ZWDZY3HKFDJT2ZSEUCHPMG3OQXQUNU5W64XMHCIIO`.
@@ -18,55 +21,73 @@
 - **Modo demo**: si falta configuración de cadena, el flujo completo corre
   off-chain y las operaciones se marcan `simulated`.
 
-## Interfaz del contrato
+## Interfaz v2
 
 ```
-create_guarantee(id, tenant, landlord, token, amount, end_date)  // auth: tenant
-fund_guarantee(id)                                               // auth: tenant, transfiere al escrow
-request_release(id, caller)                                      // auth: cualquiera de las partes
-propose_distribution(id, proposer, to_landlord, to_tenant)       // la suma debe igualar el total
-accept_proposal(id, acceptor)                                    // no se puede aceptar la propia
-release_funds(id)                                                // paga la distribución acordada
-cancel_guarantee(id, caller)                                     // sólo si nunca se financió
+create_guarantee(id, guarantor, landlord, token, amount, end_date) // auth: garante
+fund_guarantee(id)                                                 // auth: garante
+cancel_guarantee(id, caller)                                       // sólo si nunca se financió
+propose_settlement(id, proposer, to_guarantor, to_landlord)        // la suma puede ser < saldo
+accept_settlement(id, acceptor)                                    // no se puede aceptar la propia
+reject_settlement(id, caller)
+execute_settlement(id)                                             // paga lo acordado
+return_to_guarantor(id, amount)                                    // auth: locador, unilateral
+propose_extension(id, new_end_date, new_amount)                    // auth: garante
+accept_extension(id)                                               // auth: locador
+cancel_extension(id, caller)
+set_treasury(treasury) / set_fee_bps(bps)                          // auth: admin
+get_guarantee / get_settlement / get_agreement / get_extension / get_config / quote_fee
 ```
 
-Estados on-chain: `Created → Funded → ReturnRequested → Negotiation → Agreed →
-Released`, más `Cancelled`.
+Estados on-chain: `Pending → Active → Closed`, más `Cancelled`. `locked` es el
+saldo todavía bloqueado y `funded` el total depositado (incluye top-ups). La
+garantía cierra sólo cuando `locked` llega a 0, por lo que admite múltiples
+devoluciones parciales.
 
-Garantías de seguridad ya implementadas: el dinero sólo sale por
-`release_funds`; el split debe sumar exactamente el monto bloqueado; el estado
-se escribe antes de transferir (evita doble pago); sólo las partes pueden
-operar.
+## Comisión
 
-## Mapeo con SAFEXY
+0,05 % (`fee_bps = 5`, denominador 10 000) sobre el monto efectivamente devuelto
+al garante, redondeado hacia arriba al stroop, enviado a `treasury`. No se cobra
+sobre lo que recibe el locador. Tesorería y porcentaje son configurables por el
+admin sin redesplegar (tope 5 %).
 
-| Concepto SAFEXY | On-chain |
+## Redeployment v2
+
+| | Contrato |
 | --- | --- |
-| Garante | `tenant` |
-| Locador | `landlord` |
-| Crear + financiar | `create_guarantee` + `fund_guarantee` |
-| Solicitud de devolución | `request_release` |
-| Monto propuesto a devolver | `propose_distribution(to_tenant = devuelto, to_landlord = resto)` |
-| Aprobación del locador | `accept_proposal` |
-| Pago | `release_funds` (lo firma la cuenta de plataforma) |
+| Anterior | `CB3JG5IKMHKUXRPYSZ6UVOEJ42XXGQQOIBK4UBYEPYSTGBZ6IIAN5LAH` (`rental-guarantee`) |
+| Nuevo | `CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV` (`safexy-guarantee`) |
 
-El contrato ya soporta el caso "el locador devuelve": él puede proponer una
-distribución 100 % al garante y el garante la acepta. La "devolución
-unilateral" de SAFEXY se implementa como esa propuesta, auto-aceptada por
-regla de negocio del lado del garante (le es siempre favorable).
+Motivo: el contrato anterior no soportaba el modelo SAFEXY. Sus límites eran
+bloqueantes y no parcheables por configuración:
 
-## Límites conocidos
+1. `release_funds` pagaba el total y cerraba la garantía — sin devolución
+   parcial ni saldo remanente.
+2. La distribución debía sumar exactamente el monto bloqueado.
+3. No existía destino de comisión ni parámetro de fee.
+4. No existía extensión de plazo ni cambio de monto.
+5. Los roles se llamaban `tenant`/`landlord`, atados al contrato de alquiler.
 
-1. **No hay liberación parcial**: `release_funds` paga el total y cierra la
-   garantía. La devolución parcial con remanente bloqueado necesita una
-   decisión — ver `BUSINESS_RULES.md`.
-2. **No hay comisión on-chain**: la distribución sólo tiene dos destinos. La
-   comisión de 0,05 % exige un tercer destino (`to_platform`) o una
-   transferencia posterior desde la cuenta de plataforma. Preferible agregar
-   el tercer destino al contrato cuando se lo modifique.
-3. **No hay extensión on-chain**: cambiar monto o `end_date` requiere una
-   función nueva o el ciclo cerrar-y-recrear.
-4. `PLATFORM_SECRET_KEY` está vacía en producción, así que el pago final corre
+Diferencias: estados nuevos (`Pending/Active/Closed/Cancelled`), `locked` +
+`funded`, settlement que puede sumar menos que el saldo, `return_to_guarantor`
+unilateral del locador, extensiones con top-up o devolución de diferencia,
+configuración on-chain de admin/tesorería/fee y constructor obligatorio.
+
+Impacto sobre datos existentes: ninguna garantía real está protegida (testnet /
+demo). Las garantías creadas contra el contrato anterior quedan huérfanas del
+nuevo `SOROBAN_CONTRACT_ID`; se tratan como datos de demo y no se migran. El
+contrato anterior sigue existiendo en testnet, sin uso.
+
+Verificación en testnet tras el deploy: `quote_fee(400 USDC) = 0,20 USDC`;
+garantía de 1000 USDC creada y financiada, devolución parcial de 300 USDC
+acordada y ejecutada → 299,85 USDC al garante, 0,15 USDC a la tesorería y
+700 USDC siguen bloqueados con la garantía `Active`.
+
+## Pendientes
+
+1. Actualizar el cliente TypeScript (`src/lib/stellar/`) a la interfaz v2.
+2. Actualizar `SOROBAN_CONTRACT_ID` en Vercel al contrato nuevo.
+3. `PLATFORM_SECRET_KEY` está vacía en producción, así que el pago final corre
    simulado hasta que se cargue una cuenta de testnet.
 
 ## Regla
