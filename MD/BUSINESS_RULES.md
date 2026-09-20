@@ -55,21 +55,21 @@ Si una garantía sigue pendiente **más de un mes después del inicio del perío
 **Decisión:** el remanente queda bloqueado y la garantía sigue activa por el
 monto reducido, sin cambiar el período.
 
-Justificación y límite técnico: el escrow actual libera el total en una sola
-operación (`release_funds` exige `to_landlord + to_tenant == amount`) y luego
-marca la garantía como `Released`. Para soportar una devolución parcial con
-remanente bloqueado hay dos caminos, y hay que elegir uno antes de implementar:
+**Resuelto:** implementado como liberación parcial dentro del contrato
+(`contracts/safexy-guarantee`, desplegado en testnet como
+`CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV`). El contrato lleva
+un saldo `locked` que se descuenta en cada `execute_settlement` o
+`return_to_guarantor`; la garantía sigue `Active` mientras `locked > 0` y pasa
+a `Closed` sólo cuando llega a 0. No hay ciclo cerrar-y-recrear ni
+fragmentación del historial on-chain — ver `BLOCKCHAIN.md` para la interfaz
+completa y la verificación en testnet.
 
-1. **Ciclo cerrar-y-recrear** (sin tocar el contrato): se libera el total, se le
-   devuelve al garante la parte devuelta y se vuelve a bloquear el remanente en
-   una garantía nueva encadenada a la anterior. Simple de implementar, cuesta
-   una transacción extra y fragmenta el historial on-chain.
-2. **Liberación parcial en el contrato** (`release_partial`): requiere modificar
-   y redesplegar el contrato Soroban. Más limpio, pero toca la pieza que hoy
-   funciona y obliga a migrar las garantías existentes.
-
-Recomendación: opción 1 para la primera entrega — no rompe nada de lo que ya
-funciona on-chain — y opción 2 como mejora posterior planificada.
+Pendiente: el cliente TypeScript (`src/lib/stellar/guarantee-contract.ts`) y
+los servicios de la app todavía apuntan a la interfaz v1
+(`create_guarantee`/`propose_distribution`/`release_funds` sobre
+`tenant`/`landlord`) y al contrato viejo. Migrarlos a la interfaz v2 es el
+siguiente paso antes de poder ofrecer devoluciones parciales reales desde la
+UI.
 
 ## Contradicciones con el comportamiento actual (a resolver)
 
