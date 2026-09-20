@@ -27,7 +27,7 @@ export async function POST(request: Request) {
       .select({ id: users.id })
       .from(users)
       .where(eq(users.email, email));
-    if (existing) throw conflict("That email is already registered");
+    if (existing) throw conflict("That email is already registered", "emailTaken");
 
     const [user] = await db
       .insert(users)

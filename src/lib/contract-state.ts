@@ -1,4 +1,5 @@
 import type { ContractStatus } from "@/lib/db/schema";
+import { badRequest } from "@/lib/services/errors";
 
 const TRANSITIONS: Record<ContractStatus, ContractStatus[]> = {
   DRAFT: ["PENDING_ACCEPTANCE", "CANCELLED"],
@@ -13,25 +14,15 @@ const TRANSITIONS: Record<ContractStatus, ContractStatus[]> = {
   CANCELLED: [],
 };
 
-export const STATUS_LABELS: Record<ContractStatus, string> = {
-  DRAFT: "Draft",
-  PENDING_ACCEPTANCE: "Waiting for landlord",
-  AWAITING_FUNDING: "Waiting for deposit",
-  ACTIVE: "Protected",
-  RETURN_REQUESTED: "Return requested",
-  NEGOTIATION: "In negotiation",
-  AGREED: "Agreement reached",
-  RELEASED: "Funds released",
-  COMPLETED: "Completed",
-  CANCELLED: "Cancelled",
-};
-
 export function canTransition(from: ContractStatus, to: ContractStatus) {
   return TRANSITIONS[from].includes(to);
 }
 
 export function assertTransition(from: ContractStatus, to: ContractStatus) {
   if (!canTransition(from, to)) {
-    throw new Error(`Invalid contract transition: ${from} -> ${to}`);
+    throw badRequest(
+      `Invalid contract transition: ${from} -> ${to}`,
+      "invalidTransition",
+    );
   }
 }

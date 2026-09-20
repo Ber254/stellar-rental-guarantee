@@ -127,12 +127,12 @@ export async function acceptInvitation(landlord: User, inviteToken: string) {
     .from(rentalContracts)
     .where(eq(rentalContracts.inviteToken, inviteToken));
 
-  if (!contract) throw notFound("Invitation not found");
+  if (!contract) throw notFound("Invitation not found", "invitationNotFound");
   if (contract.tenantId === landlord.id) {
-    throw badRequest("The tenant cannot accept their own contract");
+    throw badRequest("The tenant cannot accept their own contract", "tenantCannotAccept");
   }
   if (contract.landlordId && contract.landlordId !== landlord.id) {
-    throw forbidden("This contract was already accepted by another landlord");
+    throw forbidden("This contract was already accepted by another landlord", "invitationTaken");
   }
   if (contract.status !== "PENDING_ACCEPTANCE") {
     return contract;
@@ -199,9 +199,9 @@ export async function getContractForUser(contractId: string, userId: string) {
     .leftJoin(guarantees, eq(guarantees.contractId, rentalContracts.id))
     .where(eq(rentalContracts.id, contractId));
 
-  if (!row) throw notFound("Contract not found");
+  if (!row) throw notFound("Contract not found", "contractNotFound");
   if (row.contract.tenantId !== userId && row.contract.landlordId !== userId) {
-    throw forbidden("You are not a party of this contract");
+    throw forbidden("You are not a party of this contract", "notAParty");
   }
   return row;
 }
@@ -253,7 +253,7 @@ export async function getContractDetail(contractId: string, userId: string) {
 export function roleOf(contract: RentalContract, userId: string): PartyRole {
   if (contract.tenantId === userId) return "TENANT";
   if (contract.landlordId === userId) return "LANDLORD";
-  throw forbidden("You are not a party of this contract");
+  throw forbidden("You are not a party of this contract", "notAParty");
 }
 
 export async function requireContractParty(contractId: string, userId: string) {
@@ -261,7 +261,7 @@ export async function requireContractParty(contractId: string, userId: string) {
     .select()
     .from(rentalContracts)
     .where(eq(rentalContracts.id, contractId));
-  if (!contract) throw notFound("Contract not found");
+  if (!contract) throw notFound("Contract not found", "contractNotFound");
   const role = roleOf(contract, userId);
   return { contract, role };
 }

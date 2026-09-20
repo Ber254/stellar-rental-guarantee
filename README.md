@@ -32,6 +32,18 @@ Next.js app (UI + route handlers)
   '- Soroban RPC -> safexy-guarantee contract -> USDC SAC
 ```
 
+## Language and themes
+
+The interface ships in LATAM Spanish (default) and English. Dictionaries live in
+`src/lib/i18n/dictionaries.ts`; the choice is stored in the `rg_locale` cookie and
+read on the server, so pages render already translated.
+
+Two experiences replace the usual light/dark switch: `modern` (dark, default) and
+`retro` (light, monospace). The choice is stored in the `rg_theme` cookie and applied
+as `data-theme` on `<html>`; both palettes are defined as CSS variables in
+`src/app/globals.css` and exposed to Tailwind as semantic colors (`bg-surface`,
+`text-muted`, `border-line`, …).
+
 ## Local development
 
 ```bash

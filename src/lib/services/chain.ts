@@ -84,8 +84,8 @@ async function loadContext(
     .leftJoin(guarantees, eq(guarantees.contractId, rentalContracts.id))
     .where(eq(rentalContracts.id, contractId));
 
-  if (!row?.contract) throw notFound("Contract not found");
-  if (!row.guarantee) throw notFound("Guarantee not found for this contract");
+  if (!row?.contract) throw notFound("Contract not found", "contractNotFound");
+  if (!row.guarantee) throw notFound("Guarantee not found for this contract", "guaranteeNotFound");
 
   const role = roleOf(row.contract, user.id);
   return {
@@ -114,12 +114,12 @@ function planStep(
 
   switch (step) {
     case "create": {
-      if (role !== "TENANT") throw forbidden("Only the tenant registers the guarantee");
+      if (role !== "TENANT") throw forbidden("Only the tenant registers the guarantee", "onlyTenantRegisters");
       if (contract.status !== "AWAITING_FUNDING") {
-        throw badRequest("The contract is not waiting for the deposit");
+        throw badRequest("The contract is not waiting for the deposit", "notAwaitingDeposit");
       }
       if (ctx.guarantee.status !== "CREATED") {
-        throw badRequest("The guarantee is already registered on Stellar");
+        throw badRequest("The guarantee is already registered on Stellar", "guaranteeAlreadyRegistered");
       }
       return () =>
         calls.createGuarantee({
@@ -131,15 +131,15 @@ function planStep(
         });
     }
     case "fund": {
-      if (role !== "TENANT") throw forbidden("Only the tenant can fund the guarantee");
+      if (role !== "TENANT") throw forbidden("Only the tenant can fund the guarantee", "onlyTenantFunds");
       if (contract.status !== "AWAITING_FUNDING") {
-        throw badRequest("The contract is not waiting for the deposit");
+        throw badRequest("The contract is not waiting for the deposit", "notAwaitingDeposit");
       }
       return () => calls.fundGuarantee(onChainId);
     }
     case "request-release": {
       if (role !== "TENANT") {
-        throw forbidden("Only the tenant can request the guarantee back");
+        throw forbidden("Only the tenant can request the guarantee back", "onlyTenantRequests");
       }
       assertTransition(contract.status, "RETURN_REQUESTED");
       return () => calls.requestRelease(onChainId, ctx.wallet);
@@ -155,13 +155,14 @@ function planStep(
       ) {
         throw badRequest(
           `The split must add up to ${formatUsdc(contract.guaranteeAmount)}`,
+          "splitMismatch",
         );
       }
       if (
         contract.status !== "RETURN_REQUESTED" &&
         contract.status !== "NEGOTIATION"
       ) {
-        throw badRequest("There is no open return request for this contract");
+        throw badRequest("There is no open return request for this contract", "noOpenReturnRequest");
       }
       return () =>
         calls.proposeDistribution({
@@ -173,13 +174,13 @@ function planStep(
     }
     case "accept": {
       if (contract.status !== "NEGOTIATION") {
-        throw badRequest("There is no proposal to accept");
+        throw badRequest("There is no proposal to accept", "noProposalToAccept");
       }
       return () => calls.acceptProposal(onChainId, ctx.wallet);
     }
     case "release": {
       if (contract.status !== "AGREED") {
-        throw badRequest("The parties have not agreed on a distribution yet");
+        throw badRequest("The parties have not agreed on a distribution yet", "noAgreementYet");
       }
       return () => calls.releaseFunds(onChainId);
     }
@@ -296,9 +297,9 @@ async function applyStep(
     }
     case "accept": {
       const current = await openProposal(contract.id);
-      if (!current) throw badRequest("There is no proposal to accept");
+      if (!current) throw badRequest("There is no proposal to accept", "noProposalToAccept");
       if (current.proposedBy === user.id) {
-        throw badRequest("You cannot accept your own proposal");
+        throw badRequest("You cannot accept your own proposal", "cannotAcceptOwnProposal");
       }
       await db
         .update(proposals)
@@ -446,9 +447,9 @@ export async function completeStep(
 export async function rejectProposal(user: User, contractId: string) {
   const ctx = await loadContext(user, contractId);
   const current = await openProposal(contractId);
-  if (!current) throw badRequest("There is no proposal to reject");
+  if (!current) throw badRequest("There is no proposal to reject", "noProposalToReject");
   if (current.proposedBy === user.id) {
-    throw badRequest("You cannot reject your own proposal");
+    throw badRequest("You cannot reject your own proposal", "cannotRejectOwnProposal");
   }
 
   await db

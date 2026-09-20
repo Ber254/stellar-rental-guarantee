@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { AcceptInvite } from "@/components/accept-invite";
 import { Card, Row } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
+import { getDictionary } from "@/lib/i18n";
+import { getLocale } from "@/lib/i18n/server";
 import { formatUsdc } from "@/lib/money";
 import { findContractByInvite } from "@/lib/services/contracts";
 
@@ -16,14 +18,18 @@ export default async function InvitePage({
   const user = await getCurrentUser();
   if (!user) redirect(`/login?next=/invite/${token}`);
 
-  const row = await findContractByInvite(token);
+  const [row, locale] = await Promise.all([
+    findContractByInvite(token),
+    getLocale(),
+  ]);
+  const t = getDictionary(locale);
   if (!row) {
     return (
-      <Card title="Invitation not available">
-        <p className="text-sm text-slate-600">
-          This invitation does not exist or was already accepted.{" "}
+      <Card title={t.invite.unavailableTitle}>
+        <p className="text-sm text-muted">
+          {t.invite.unavailableBody}{" "}
           <Link href="/dashboard" className="underline">
-            Go to your contracts
+            {t.invite.goToContracts}
           </Link>
           .
         </p>
@@ -36,14 +42,17 @@ export default async function InvitePage({
   return (
     <div className="mx-auto max-w-xl">
       <Card
-        title="Confirm the rental contract"
-        description="As landlord you confirm the terms. The deposit stays locked in the escrow until both of you agree on how to split it."
+        title={t.invite.confirmTitle}
+        description={t.invite.confirmDescription}
       >
         <dl className="mb-4">
-          <Row label="Property" value={property.label} />
-          <Row label="Address" value={property.address} />
-          <Row label="Guarantee" value={formatUsdc(contract.guaranteeAmount)} />
-          <Row label="Reference" value={contract.reference} />
+          <Row label={t.invite.property} value={property.label} />
+          <Row label={t.invite.address} value={property.address} />
+          <Row
+            label={t.invite.guarantee}
+            value={formatUsdc(contract.guaranteeAmount)}
+          />
+          <Row label={t.invite.reference} value={contract.reference} />
         </dl>
         <AcceptInvite token={token} />
       </Card>
