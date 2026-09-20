@@ -21,7 +21,7 @@ export async function POST(request: Request) {
       .where(eq(users.email, input.email.toLowerCase()));
 
     if (!user || !(await verifyPassword(input.password, user.passwordHash))) {
-      throw new AppError("Invalid email or password", 401);
+      throw new AppError("Invalid email or password", 401, "invalidCredentials");
     }
 
     await createSession(user.id);

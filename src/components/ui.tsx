@@ -52,7 +52,7 @@ export function StatusBadge({
 }) {
   return (
     <span
-      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_TONES[status]}`}
+      className={`inline-flex rounded-badge px-2.5 py-1 text-xs font-medium ${STATUS_TONES[status]}`}
     >
       {label}
     </span>

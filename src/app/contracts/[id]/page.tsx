@@ -86,7 +86,10 @@ export default async function ContractPage({
                 </span>
               }
             />
-            <Row label={t.contract.escrowStatus} value={guarantee?.status ?? "—"} />
+            <Row
+              label={t.contract.escrowStatus}
+              value={guarantee ? t.guaranteeStatus[guarantee.status] : "—"}
+            />
           </dl>
         </Card>
 

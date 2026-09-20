@@ -1,4 +1,43 @@
+import type { ErrorCode } from "@/lib/services/errors";
+
 export const es = {
+  meta: {
+    title: "Garantía de Alquiler en Stellar",
+    description:
+      "Bloqueá la garantía del alquiler en un escrow Soroban y liberala sólo cuando inquilino y propietario acuerdan.",
+  },
+  guaranteeStatus: {
+    CREATED: "Registrada",
+    LOCKED: "Bloqueada",
+    RELEASED: "Liberada",
+    CANCELLED: "Cancelada",
+  },
+  errors: {
+    signInRequired: "Necesitás iniciar sesión.",
+    invalidCredentials: "Email o contraseña incorrectos.",
+    emailTaken: "Ese email ya está registrado.",
+    invalidInput: "Revisá los datos ingresados.",
+    unexpected: "Algo salió mal. Probá de nuevo.",
+    invitationNotFound: "No encontramos esa invitación.",
+    tenantCannotAccept: "El inquilino no puede aceptar su propio contrato.",
+    invitationTaken: "Otro propietario ya aceptó este contrato.",
+    contractNotFound: "No encontramos el contrato.",
+    notAParty: "No sos parte de este contrato.",
+    guaranteeNotFound: "Este contrato todavía no tiene garantía registrada.",
+    onlyTenantRegisters: "Sólo el inquilino registra la garantía.",
+    notAwaitingDeposit: "El contrato no está esperando el depósito.",
+    guaranteeAlreadyRegistered: "La garantía ya está registrada en Stellar.",
+    onlyTenantFunds: "Sólo el inquilino puede depositar la garantía.",
+    onlyTenantRequests: "Sólo el inquilino puede pedir la garantía de vuelta.",
+    noOpenReturnRequest: "No hay una solicitud de devolución abierta.",
+    noProposalToAccept: "No hay ninguna propuesta para aceptar.",
+    noAgreementYet: "Todavía no hay acuerdo sobre el reparto.",
+    cannotAcceptOwnProposal: "No podés aceptar tu propia propuesta.",
+    noProposalToReject: "No hay ninguna propuesta para rechazar.",
+    cannotRejectOwnProposal: "No podés rechazar tu propia propuesta.",
+    splitMismatch: "El reparto tiene que sumar exactamente el monto de la garantía.",
+    invalidTransition: "Ese paso no es válido en el estado actual del contrato.",
+  },
   nav: {
     brand: "Garantía de Alquiler",
     chainTestnet: "Stellar testnet",
@@ -174,6 +213,43 @@ export const es = {
 export type Dictionary = typeof es;
 
 export const en: Dictionary = {
+  meta: {
+    title: "Rental Guarantee on Stellar",
+    description:
+      "Lock the rental deposit in a Soroban escrow and release it only when tenant and landlord agree.",
+  },
+  guaranteeStatus: {
+    CREATED: "Registered",
+    LOCKED: "Locked",
+    RELEASED: "Released",
+    CANCELLED: "Cancelled",
+  },
+  errors: {
+    signInRequired: "You need to sign in.",
+    invalidCredentials: "Invalid email or password.",
+    emailTaken: "That email is already registered.",
+    invalidInput: "Please check the information you entered.",
+    unexpected: "Something went wrong. Please try again.",
+    invitationNotFound: "We could not find that invitation.",
+    tenantCannotAccept: "The tenant cannot accept their own contract.",
+    invitationTaken: "Another landlord already accepted this contract.",
+    contractNotFound: "We could not find the contract.",
+    notAParty: "You are not a party of this contract.",
+    guaranteeNotFound: "This contract has no guarantee registered yet.",
+    onlyTenantRegisters: "Only the tenant registers the guarantee.",
+    notAwaitingDeposit: "The contract is not waiting for the deposit.",
+    guaranteeAlreadyRegistered: "The guarantee is already registered on Stellar.",
+    onlyTenantFunds: "Only the tenant can fund the guarantee.",
+    onlyTenantRequests: "Only the tenant can request the guarantee back.",
+    noOpenReturnRequest: "There is no open return request.",
+    noProposalToAccept: "There is no proposal to accept.",
+    noAgreementYet: "The parties have not agreed on a distribution yet.",
+    cannotAcceptOwnProposal: "You cannot accept your own proposal.",
+    noProposalToReject: "There is no proposal to reject.",
+    cannotRejectOwnProposal: "You cannot reject your own proposal.",
+    splitMismatch: "The split must add up to the full guarantee amount.",
+    invalidTransition: "That step is not valid in the current contract state.",
+  },
   nav: {
     brand: "Rental Guarantee",
     chainTestnet: "Stellar testnet",
@@ -344,3 +420,6 @@ export const en: Dictionary = {
     CANCELLED: "Cancelled",
   },
 };
+
+const _errorCoverage: Record<ErrorCode, string> = es.errors;
+void _errorCoverage;

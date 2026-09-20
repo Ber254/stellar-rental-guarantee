@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import type { ContractStatus, PartyRole } from "@/lib/db/schema";
-import { interpolate } from "@/lib/i18n";
+import { apiErrorMessage, interpolate } from "@/lib/i18n";
 import type { ChainStep } from "@/lib/services/chain";
 import { useI18n } from "./i18n-provider";
 import { Alert, Button, Card, Field, Input } from "./ui";
@@ -52,7 +52,7 @@ export function ContractActions({
         body: JSON.stringify(body),
       });
       let result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error ?? t.actions.failed);
+      if (!response.ok) throw new Error(apiErrorMessage(t, result, t.actions.failed));
 
       if (result.mode === "sign") {
         const signedXdr = await sign(result.xdr);
@@ -62,7 +62,7 @@ export function ContractActions({
           body: JSON.stringify({ ...body, signedXdr }),
         });
         result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result.error ?? t.actions.failed);
+        if (!response.ok) throw new Error(apiErrorMessage(t, result, t.actions.failed));
       }
       router.refresh();
     } catch (cause) {
@@ -81,7 +81,7 @@ export function ContractActions({
     const result = await response.json().catch(() => ({}));
     setBusy(null);
     if (!response.ok) {
-      setError(result.error ?? t.actions.rejectFailed);
+      setError(apiErrorMessage(t, result, t.actions.rejectFailed));
       return;
     }
     router.refresh();

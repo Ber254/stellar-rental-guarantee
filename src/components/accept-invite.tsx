@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { apiErrorMessage } from "@/lib/i18n";
+
 import { useI18n } from "./i18n-provider";
 import { Alert, Button } from "./ui";
 
@@ -19,7 +21,7 @@ export function AcceptInvite({ token }: { token: string }) {
     const body = await response.json().catch(() => ({}));
     setPending(false);
     if (!response.ok) {
-      setError(body.error ?? t.invite.error);
+      setError(apiErrorMessage(t, body, t.invite.error));
       return;
     }
     router.push(`/contracts/${body.contract.id}`);

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { apiErrorMessage } from "@/lib/i18n";
+
 import { useI18n } from "./i18n-provider";
 import { Alert, Button, Card, Field, Input } from "./ui";
 
@@ -28,7 +30,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
 
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      setError(body.error ?? t.auth.genericError);
+      setError(apiErrorMessage(t, body, t.auth.genericError));
       return;
     }
     router.replace("/dashboard");

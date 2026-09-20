@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { apiErrorMessage } from "@/lib/i18n";
+
 import { useI18n } from "./i18n-provider";
 import { Alert, Button, Card, Field, Input, Textarea } from "./ui";
 import { ConnectWalletButton, useWallet } from "./wallet";
@@ -28,7 +30,7 @@ export function NewContractForm({ defaultWallet }: { defaultWallet: string }) {
     setPending(false);
 
     if (!response.ok) {
-      setError(body.error ?? t.newContract.error);
+      setError(apiErrorMessage(t, body, t.newContract.error));
       return;
     }
     router.push(`/contracts/${body.contract.id}`);

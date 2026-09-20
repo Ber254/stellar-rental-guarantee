@@ -16,11 +16,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Garantía de Alquiler en Stellar",
-  description:
-    "Bloqueá la garantía del alquiler en un escrow Soroban y liberala sólo cuando inquilino y propietario acuerdan.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { meta } = getDictionary(await getLocale());
+  return { title: meta.title, description: meta.description };
+}
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const [locale, theme] = await Promise.all([getLocale(), getTheme()]);

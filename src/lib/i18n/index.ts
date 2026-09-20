@@ -1,3 +1,5 @@
+import { ERROR_CODES } from "@/lib/services/errors";
+
 import { en, es, type Dictionary } from "./dictionaries";
 
 export const LOCALES = ["es", "en"] as const;
@@ -34,3 +36,13 @@ export function interpolate(
 }
 
 export type { Dictionary };
+
+export function apiErrorMessage(
+  t: Dictionary,
+  body: { code?: unknown; error?: unknown },
+  fallback: string,
+): string {
+  const code = ERROR_CODES.find((candidate) => candidate === body.code);
+  if (code) return t.errors[code];
+  return typeof body.error === "string" ? body.error : fallback;
+}
