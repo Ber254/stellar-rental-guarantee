@@ -84,4 +84,6 @@ UI.
 | Extensión | No existe | `propose_extension`/`accept_extension`/`cancel_extension`, con top-up o devolución de la diferencia | Hecho |
 | Estados humanos | Se muestran estados internos | `t.status[...]` en toda la UI, `STATUSES.md` como fuente de verdad | Hecho |
 | Notificaciones traducidas | `title`/`body` en inglés ya renderizado | Sigue en inglés; `notifications.kind` está tipado pero no se usa todavía para traducir | Pendiente |
-| Saldo disponible en el perfil | No existía | El perfil muestra el monto comprometido en garantías; el saldo de la wallet en sí no se consulta on-chain todavía | Parcial |
+| Saldo disponible en el perfil | No existía | `fetchUsdcBalance` lee Horizon; el perfil muestra `balance − comprometido` cuando hay `STELLAR_USDC_ISSUER` configurado, y cae al monto comprometido (con la etiqueta aclarada) en modo demo | Hecho |
+| Editar/cancelar antes de la aceptación | No existía | `PATCH /api/contracts/[id]` y `POST /api/contracts/[id]/cancel`, sólo mientras `PENDING_ACCEPTANCE` y sólo el garante | Hecho |
+| Motivo obligatorio al rechazar una devolución | Opcional y sin campo en la UI durante la negociación | `chain.ts` exige `reason` en el paso `reject`, la UI lo pide | Hecho |

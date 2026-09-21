@@ -12,6 +12,7 @@ export const ERROR_CODES = [
   "aliasNotFound",
   "cannotGuaranteeYourself",
   "onlyGuarantorRegisters",
+  "onlyGuarantorEdits",
   "notAwaitingDeposit",
   "guaranteeAlreadyRegistered",
   "onlyGuarantorFunds",

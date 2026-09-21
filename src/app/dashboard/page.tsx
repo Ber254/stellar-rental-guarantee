@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { HowItWorks } from "@/components/how-it-works";
 import { Card, StatusBadge } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
 import { getDictionary, type Dictionary } from "@/lib/i18n";
@@ -63,6 +64,8 @@ export default async function DashboardPage() {
           {t.dashboard.newGuarantee}
         </Link>
       </div>
+
+      <HowItWorks label={t.dashboard.howItWorks} body={t.dashboard.howItWorksBody} />
 
       <section className="space-y-3">
         <h2 className="text-base font-semibold text-fg">{t.dashboard.given}</h2>

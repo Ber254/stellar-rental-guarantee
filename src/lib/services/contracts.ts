@@ -162,6 +162,120 @@ export async function createRentalContract(
   return contract;
 }
 
+export const updateContractSchema = z
+  .object({
+    propertyLabel: z.string().min(2).max(120).optional().or(z.literal("")),
+    propertyAddress: z.string().min(4).max(240).optional().or(z.literal("")),
+    guaranteeAmount: z
+      .string()
+      .regex(/^\d+(\.\d{1,7})?$/, "Invalid amount")
+      .refine((value) => Number(value) > 0, "Amount must be greater than zero"),
+    rentAmount: z
+      .string()
+      .regex(/^\d+(\.\d{1,7})?$/)
+      .optional()
+      .or(z.literal("")),
+    startDate: z.iso.date(),
+    endDate: z.iso.date(),
+    notes: z.string().max(2000).optional().or(z.literal("")),
+  })
+  .refine((value) => new Date(value.endDate) > new Date(value.startDate), {
+    message: "End date must be after the start date",
+    path: ["endDate"],
+  });
+
+export type UpdateContractInput = z.infer<typeof updateContractSchema>;
+
+/** Only the guarantor can edit, and only while nobody has responded yet. */
+export async function updatePendingContract(
+  guarantor: User,
+  contractId: string,
+  input: UpdateContractInput,
+) {
+  const { contract } = await requireContractParty(contractId, guarantor.id);
+  if (contract.guarantorId !== guarantor.id) {
+    throw forbidden("Only the guarantor can edit this guarantee", "onlyGuarantorEdits");
+  }
+  if (contract.status !== "PENDING_ACCEPTANCE") {
+    throw badRequest("This guarantee can no longer be edited", "notAwaitingAcceptance");
+  }
+
+  if (input.propertyLabel && input.propertyAddress) {
+    if (contract.propertyId) {
+      await db
+        .update(properties)
+        .set({ label: input.propertyLabel, address: input.propertyAddress })
+        .where(eq(properties.id, contract.propertyId));
+    } else {
+      const [property] = await db
+        .insert(properties)
+        .values({
+          label: input.propertyLabel,
+          address: input.propertyAddress,
+          createdBy: guarantor.id,
+        })
+        .returning();
+      await db
+        .update(rentalContracts)
+        .set({ propertyId: property.id })
+        .where(eq(rentalContracts.id, contract.id));
+    }
+  }
+
+  const [updated] = await db
+    .update(rentalContracts)
+    .set({
+      guaranteeAmount: input.guaranteeAmount,
+      rentAmount: input.rentAmount || null,
+      startDate: new Date(input.startDate),
+      endDate: new Date(input.endDate),
+      notes: input.notes || null,
+      updatedAt: new Date(),
+    })
+    .where(eq(rentalContracts.id, contract.id))
+    .returning();
+
+  await db
+    .update(guarantees)
+    .set({ amount: input.guaranteeAmount })
+    .where(eq(guarantees.contractId, contract.id));
+
+  return updated;
+}
+
+/** Only the guarantor can withdraw a guarantee nobody has responded to yet. */
+export async function cancelPendingContract(guarantor: User, contractId: string) {
+  const { contract } = await requireContractParty(contractId, guarantor.id);
+  if (contract.guarantorId !== guarantor.id) {
+    throw forbidden("Only the guarantor can cancel this guarantee", "onlyGuarantorCancels");
+  }
+  if (contract.status !== "PENDING_ACCEPTANCE") {
+    throw badRequest("This guarantee can no longer be cancelled directly", "notPending");
+  }
+
+  assertTransition(contract.status, "CANCELLED");
+  const [updated] = await db
+    .update(rentalContracts)
+    .set({ status: "CANCELLED", updatedAt: new Date() })
+    .where(eq(rentalContracts.id, contract.id))
+    .returning();
+
+  await db
+    .update(guarantees)
+    .set({ status: "CANCELLED", lockedAmount: "0" })
+    .where(eq(guarantees.contractId, contract.id));
+
+  await notify(
+    contract.landlordId,
+    contract.id,
+    "GUARANTEE_REJECTED",
+    "Guarantee withdrawn",
+    `${guarantor.name} withdrew ${contract.reference} before you responded.`,
+  );
+
+  return updated;
+}
+
 export async function acceptContract(landlord: User, contractId: string) {
   const { contract } = await requireContractParty(contractId, landlord.id);
   if (contract.landlordId !== landlord.id) {

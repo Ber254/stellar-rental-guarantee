@@ -49,9 +49,23 @@ export const CHAIN_STEPS = [
 
 export type ChainStep = (typeof CHAIN_STEPS)[number];
 
+const AMOUNT = /^\d+(\.\d{1,7})?$/;
+
+// toGuarantor/toLandlord are required for "propose" but irrelevant for
+// "reject" (which only needs a reason), so both stay optional here and
+// "propose" re-parses with settlementAmountsSchema to require them.
 export const proposePayloadSchema = z.object({
-  toGuarantor: z.string().regex(/^\d+(\.\d{1,7})?$/),
-  toLandlord: z.string().regex(/^\d+(\.\d{1,7})?$/),
+  toGuarantor: z.string().regex(AMOUNT).optional(),
+  toLandlord: z.string().regex(AMOUNT).optional(),
+  reason: z.string().max(500).optional().or(z.literal("")),
+});
+
+const settlementAmountsSchema = z.object({
+  toGuarantor: z.string().regex(AMOUNT),
+  toLandlord: z.string().regex(AMOUNT),
+});
+
+const proposeWithReasonSchema = settlementAmountsSchema.extend({
   reason: z.string().max(500).optional().or(z.literal("")),
 });
 
@@ -189,7 +203,7 @@ function planStep(ctx: Context, step: ChainStep, payload: StepPayload): () => Co
       return () => calls.cancelGuarantee(onChainId, ctx.wallet);
     }
     case "propose": {
-      const proposal = proposePayloadSchema.parse(payload.propose);
+      const proposal = settlementAmountsSchema.parse(payload.propose);
       if (!amountsWithinLocked(proposal.toGuarantor, proposal.toLandlord, locked)) {
         throw badRequest(`The split cannot exceed ${formatUsdc(locked)}`, "exceedsLocked");
       }
@@ -210,6 +224,9 @@ function planStep(ctx: Context, step: ChainStep, payload: StepPayload): () => Co
     }
     case "reject": {
       if (!inNegotiation) throw badRequest("There is no proposal to reject", "noSettlementToReject");
+      if (!payload.propose?.reason?.trim()) {
+        throw badRequest("A reason is required", "reasonRequired");
+      }
       return () => calls.rejectSettlement(onChainId, ctx.wallet);
     }
     case "execute": {
@@ -331,7 +348,7 @@ async function applyStep(
       break;
     }
     case "propose": {
-      const proposal = proposePayloadSchema.parse(payload.propose);
+      const proposal = proposeWithReasonSchema.parse(payload.propose);
       const current = await openProposal(contract.id);
       if (current) {
         await db

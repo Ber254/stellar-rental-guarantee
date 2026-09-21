@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { apiErrorMessage } from "@/lib/i18n";
 
+import { HowItWorks } from "./how-it-works";
 import { useI18n } from "./i18n-provider";
 import { Alert, Button, Card, Field, Input, Textarea } from "./ui";
 import { ConnectWalletButton, useWallet } from "./wallet";
@@ -147,6 +148,9 @@ export function NewContractForm({ defaultWallet }: { defaultWallet: string }) {
           <Button type="submit" disabled={pending || !landlord}>
             {pending ? t.newContract.submitting : t.newContract.submit}
           </Button>
+        </div>
+        <div className="sm:col-span-2">
+          <HowItWorks label={t.newContract.howItWorks} body={t.newContract.howItWorksBody} />
         </div>
       </form>
     </Card>

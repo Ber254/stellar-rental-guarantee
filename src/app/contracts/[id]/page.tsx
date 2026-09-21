@@ -133,6 +133,13 @@ export default async function ContractPage({
                   }
                 : null
             }
+            editableDefaults={{
+              guaranteeAmount: contract.guaranteeAmount,
+              rentAmount: contract.rentAmount ?? "",
+              startDate: formatDate(contract.startDate),
+              endDate: formatDate(contract.endDate),
+              notes: contract.notes ?? "",
+            }}
           />
         </WalletProvider>
       </div>

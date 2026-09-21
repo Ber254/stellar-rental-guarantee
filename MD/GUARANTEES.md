@@ -38,6 +38,8 @@ ir en favor del garante).
 | Operación | Quién | Efecto |
 | --- | --- | --- |
 | Crear | Garante | Queda pendiente de aceptación; el monto se compromete. |
+| Editar (mientras está pendiente) | Garante | Cambia monto, alquiler, fechas o notas; no cambia el locador. |
+| Cancelar (mientras está pendiente) | Garante | Se cancela sin pasar por el escrow; el monto vuelve a estar disponible. |
 | Aceptar | Locador | Pasa a activa. |
 | Denegar | Locador | Queda rechazada con motivo; se libera el monto. |
 | Vencimiento del período | Sistema | Pasa a "Vencida"; habilita devolver o extender. |

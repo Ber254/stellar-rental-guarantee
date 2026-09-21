@@ -22,6 +22,14 @@ type PendingExtension = {
   proposedNewEndDate: string;
 };
 
+type EditableDefaults = {
+  guaranteeAmount: string;
+  rentAmount: string;
+  startDate: string;
+  endDate: string;
+  notes: string;
+};
+
 export function ContractActions({
   contractId,
   role,
@@ -31,6 +39,7 @@ export function ContractActions({
   escrowRegistered,
   pendingProposal,
   pendingExtension,
+  editableDefaults,
 }: {
   contractId: string;
   role: PartyRole;
@@ -40,6 +49,7 @@ export function ContractActions({
   escrowRegistered: boolean;
   pendingProposal: PendingProposal | null;
   pendingExtension: PendingExtension | null;
+  editableDefaults: EditableDefaults;
 }) {
   const router = useRouter();
   const { sign } = useWallet();
@@ -50,9 +60,12 @@ export function ContractActions({
   const [returnAmount, setReturnAmount] = useState("");
   const [unilateralAmount, setUnilateralAmount] = useState("");
   const [rejectReason, setRejectReason] = useState("");
+  const [settlementRejectReason, setSettlementRejectReason] = useState("");
   const [showReject, setShowReject] = useState(false);
   const [extendAmount, setExtendAmount] = useState("");
   const [extendDate, setExtendDate] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [edit, setEdit] = useState(editableDefaults);
 
   async function run(step: ChainStep, extra: Record<string, unknown> = {}) {
     setBusy(step);
@@ -102,6 +115,37 @@ export function ContractActions({
       setError(apiErrorMessage(t, result, t.actions.failed));
       return;
     }
+    router.refresh();
+  }
+
+  async function cancelPending() {
+    setBusy("cancel-pending");
+    setError(null);
+    const response = await fetch(`/api/contracts/${contractId}/cancel`, { method: "POST" });
+    const result = await response.json().catch(() => ({}));
+    setBusy(null);
+    if (!response.ok) {
+      setError(apiErrorMessage(t, result, t.actions.failed));
+      return;
+    }
+    router.refresh();
+  }
+
+  async function saveEdit() {
+    setBusy("save-edit");
+    setError(null);
+    const response = await fetch(`/api/contracts/${contractId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(edit),
+    });
+    const result = await response.json().catch(() => ({}));
+    setBusy(null);
+    if (!response.ok) {
+      setError(apiErrorMessage(t, result, t.actions.failed));
+      return;
+    }
+    setEditing(false);
     router.refresh();
   }
 
@@ -156,9 +200,69 @@ export function ContractActions({
         )}
 
         {status === "PENDING_ACCEPTANCE" && role === "GUARANTOR" && (
-          <p className="text-sm text-muted">
-            {interpolate(t.actions.waitingLandlord, { landlord: landlordName })}
-          </p>
+          <div className="space-y-4">
+            <p className="text-sm text-muted">
+              {interpolate(t.actions.waitingLandlord, { landlord: landlordName })}
+            </p>
+
+            {!editing ? (
+              <div className="flex flex-wrap gap-3">
+                <Button variant="secondary" disabled={busy !== null} onClick={() => setEditing(true)}>
+                  {t.actions.edit}
+                </Button>
+                <Button variant="danger" disabled={busy !== null} onClick={() => cancelPending()}>
+                  {busy === "cancel-pending" ? t.actions.cancelling : t.actions.cancel}
+                </Button>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label={t.newContract.guaranteeAmount}>
+                  <Input
+                    inputMode="decimal"
+                    value={edit.guaranteeAmount}
+                    onChange={(event) => setEdit({ ...edit, guaranteeAmount: event.target.value })}
+                  />
+                </Field>
+                <Field label={t.newContract.rentAmount}>
+                  <Input
+                    inputMode="decimal"
+                    value={edit.rentAmount}
+                    onChange={(event) => setEdit({ ...edit, rentAmount: event.target.value })}
+                  />
+                </Field>
+                <Field label={t.newContract.startDate}>
+                  <Input
+                    type="date"
+                    value={edit.startDate}
+                    onChange={(event) => setEdit({ ...edit, startDate: event.target.value })}
+                  />
+                </Field>
+                <Field label={t.newContract.endDate}>
+                  <Input
+                    type="date"
+                    value={edit.endDate}
+                    onChange={(event) => setEdit({ ...edit, endDate: event.target.value })}
+                  />
+                </Field>
+                <div className="sm:col-span-2">
+                  <Field label={t.newContract.notes}>
+                    <Input
+                      value={edit.notes}
+                      onChange={(event) => setEdit({ ...edit, notes: event.target.value })}
+                    />
+                  </Field>
+                </div>
+                <div className="flex gap-3 sm:col-span-2">
+                  <Button disabled={busy !== null} onClick={() => saveEdit()}>
+                    {busy === "save-edit" ? t.actions.sending : t.profile.save}
+                  </Button>
+                  <Button variant="secondary" disabled={busy !== null} onClick={() => setEditing(false)}>
+                    {t.profile.cancel}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {status === "AWAITING_FUNDING" && role === "GUARANTOR" && (
@@ -310,16 +414,23 @@ export function ContractActions({
                 {pendingProposal.mine ? (
                   <p className="mt-1 text-muted">{t.actions.waitingOther}</p>
                 ) : (
-                  <div className="mt-3 flex gap-3">
+                  <div className="mt-3 space-y-2">
                     <Button disabled={busy !== null} onClick={() => run("accept")}>
                       {busy === "accept" ? t.actions.accepting : t.actions.accept}
                     </Button>
+                    <Field label={t.actions.rejectReasonLabel}>
+                      <Input
+                        value={settlementRejectReason}
+                        onChange={(event) => setSettlementRejectReason(event.target.value)}
+                        placeholder={t.actions.rejectReasonPlaceholder}
+                      />
+                    </Field>
                     <Button
                       variant="danger"
-                      disabled={busy !== null}
-                      onClick={() => run("reject", { propose: { reason: rejectReason } })}
+                      disabled={busy !== null || settlementRejectReason.trim() === ""}
+                      onClick={() => run("reject", { propose: { reason: settlementRejectReason } })}
                     >
-                      {t.actions.reject}
+                      {busy === "reject" ? t.actions.rejecting : t.actions.reject}
                     </Button>
                   </div>
                 )}

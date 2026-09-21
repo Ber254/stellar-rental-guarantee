@@ -27,6 +27,7 @@ export const es = {
     aliasNotFound: "No encontramos ningún usuario con ese alias.",
     cannotGuaranteeYourself: "No podés crear una garantía a tu propio favor.",
     onlyGuarantorRegisters: "Sólo el garante registra la garantía.",
+    onlyGuarantorEdits: "Sólo el garante puede editar esta garantía.",
     notAwaitingDeposit: "La garantía no está esperando el depósito.",
     guaranteeAlreadyRegistered: "La garantía ya está registrada en Stellar.",
     onlyGuarantorFunds: "Sólo el garante puede depositar la garantía.",
@@ -130,9 +131,12 @@ export const es = {
     aliasUnavailable: "Ya está en uso",
     wallet: "Wallet Stellar",
     noWallet: "Todavía no conectaste una wallet.",
+    walletBalance: "Saldo de USDC en tu wallet",
     availableBalance: "Comprometido en garantías",
     balanceHint:
       "Suma bloqueada en tus garantías pendientes o activas como garante. Todavía no mostramos el saldo total de tu wallet.",
+    availableBalanceReal: "Saldo disponible",
+    balanceHintReal: "Lo que tenés en la wallet menos lo comprometido en garantías pendientes o activas.",
   },
   dashboard: {
     title: "Mis garantías",
@@ -143,6 +147,9 @@ export const es = {
     roleGuarantor: "Garante",
     roleLandlord: "Locador",
     newGuarantee: "Nueva garantía",
+    howItWorks: "¿Cómo funciona?",
+    howItWorksBody:
+      "Como garante, das dinero en garantía a favor de un locador: queda bloqueado hasta que se devuelve. Como locador, recibís garantías a tu favor y podés aprobarlas, rechazarlas o devolverlas cuando quieras. La misma persona puede ser garante en una garantía y locador en otra.",
   },
   newContract: {
     title: "Nueva garantía",
@@ -167,6 +174,9 @@ export const es = {
     submit: "Enviar garantía",
     submitting: "Enviando…",
     error: "No se pudo crear la garantía",
+    howItWorks: "¿Cómo funciona?",
+    howItWorksBody:
+      "El monto queda bloqueado en un escrow en Stellar apenas lo depositás. Nadie puede retirarlo solo: mientras esté pendiente podés editarla o cancelarla, y una vez activa el locador tiene que aceptar o rechazar antes de que el dinero se mueva.",
   },
   contract: {
     demoWarning:
@@ -206,6 +216,7 @@ export const es = {
     rejecting: "Rechazando…",
     rejectReasonLabel: "Motivo del rechazo",
     rejectReasonPlaceholder: "Contanos por qué",
+    edit: "Editar",
     cancel: "Cancelar garantía",
     cancelling: "Cancelando…",
     registerEscrow: "1. Registrar escrow",
@@ -363,6 +374,7 @@ export const en: Dictionary = {
     aliasNotFound: "We could not find a user with that alias.",
     cannotGuaranteeYourself: "You cannot create a guarantee for yourself.",
     onlyGuarantorRegisters: "Only the guarantor registers the guarantee.",
+    onlyGuarantorEdits: "Only the guarantor can edit this guarantee.",
     notAwaitingDeposit: "The guarantee is not waiting for the deposit.",
     guaranteeAlreadyRegistered: "The guarantee is already registered on Stellar.",
     onlyGuarantorFunds: "Only the guarantor can fund the guarantee.",
@@ -466,9 +478,12 @@ export const en: Dictionary = {
     aliasUnavailable: "Already taken",
     wallet: "Stellar wallet",
     noWallet: "You have not connected a wallet yet.",
+    walletBalance: "USDC balance in your wallet",
     availableBalance: "Committed to guarantees",
     balanceHint:
       "Locked in your pending or active guarantees as guarantor. We do not show your full wallet balance yet.",
+    availableBalanceReal: "Available balance",
+    balanceHintReal: "What you have in your wallet minus what is committed to pending or active guarantees.",
   },
   dashboard: {
     title: "My guarantees",
@@ -479,6 +494,9 @@ export const en: Dictionary = {
     roleGuarantor: "Guarantor",
     roleLandlord: "Landlord",
     newGuarantee: "New guarantee",
+    howItWorks: "How it works",
+    howItWorksBody:
+      "As guarantor, you put up money in favor of a landlord: it stays locked until it's returned. As landlord, you receive guarantees in your favor and can approve, reject, or return them whenever you want. The same person can be guarantor in one guarantee and landlord in another.",
   },
   newContract: {
     title: "New guarantee",
@@ -503,6 +521,9 @@ export const en: Dictionary = {
     submit: "Send guarantee",
     submitting: "Sending…",
     error: "Could not create the guarantee",
+    howItWorks: "How it works",
+    howItWorksBody:
+      "The amount gets locked in a Stellar escrow as soon as you fund it. No one can withdraw it alone: while it's pending you can edit or cancel it, and once active the landlord has to accept or reject it before any money moves.",
   },
   contract: {
     demoWarning:
@@ -542,6 +563,7 @@ export const en: Dictionary = {
     rejecting: "Rejecting…",
     rejectReasonLabel: "Reason for rejection",
     rejectReasonPlaceholder: "Tell us why",
+    edit: "Edit",
     cancel: "Cancel guarantee",
     cancelling: "Cancelling…",
     registerEscrow: "1. Register escrow",

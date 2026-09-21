@@ -21,18 +21,20 @@ más abajo, sección "Pendiente" del 2026-09-20):
    regla de negocio explícita que hoy no se cumple sola.
 2. Traducir `notifications.title`/`body` usando `notifications.kind` (ya
    tipado en el esquema) en vez de guardar texto en inglés ya renderizado.
-3. Saldo real de wallet en el perfil (hoy sólo se muestra lo comprometido en
-   garantías; falta consultar el balance USDC en Horizon).
-4. Tests automatizados de devolución parcial, devolución unilateral y
+3. Tests automatizados de devolución parcial, devolución unilateral y
    extensión (se verificaron a mano contra un Postgres real, no quedaron
    como test del repo — ver la sección de abajo para el detalle exacto de
    qué se probó).
-5. Correr el flujo completo contra el contrato desplegado en testnet real
+4. Correr el flujo completo contra el contrato desplegado en testnet real
    (hoy sólo se verificó en modo simulado) — requiere cuentas fondeadas,
    ver `TESTNET.md`.
-6. Decidir si se repone el link de invitación como fallback del alta por
+5. Decidir si se repone el link de invitación como fallback del alta por
    alias (se sacó por completo; `BUSINESS_RULES.md` documentaba conservarlo
    como fallback).
+
+~~Saldo real de wallet en el perfil~~ y ~~editar/cancelar antes de la
+aceptación~~ y ~~motivo obligatorio al rechazar una devolución~~ — resueltos,
+ver la entrada de más abajo.
 
 ## 2026-09-20
 
@@ -186,3 +188,54 @@ bloqueado y el estado terminan donde deberían. `npm run lint`,
    devolución parcial/unilateral/extensión — se verificaron manualmente con
    un script (`scripts/demo-flow.ts` cubre la negociación; el resto se probó
    ad hoc y no quedó como test del repositorio).
+
+## 2026-09-21 — Cierre de huecos contra el mensaje original
+
+Revisión punto por punto del mensaje original (regla 10, 14, 8/21, 22) contra
+lo implementado; se encontraron y cerraron cuatro huecos reales:
+
+1. **Editar/cancelar antes de la aceptación** (regla 10: "Antes de ser
+   aceptada: puede editarse; puede cancelarse"). Antes sólo se podía cancelar
+   después de que el locador aceptaba y antes de fondear. Ahora, mientras la
+   garantía está `PENDING_ACCEPTANCE`, el garante puede:
+   - Editar monto, alquiler, fechas y notas (`PATCH /api/contracts/[id]`,
+     `updatePendingContract`). No se puede cambiar el locador ni el alias —
+     eso es crear una garantía nueva, no editar la existente.
+   - Cancelarla directamente (`POST /api/contracts/[id]/cancel`,
+     `cancelPendingContract`), sin pasar por el escrow porque todavía no hay
+     nada registrado on-chain.
+2. **Motivo obligatorio al rechazar una devolución.** El rechazo de la
+   invitación ya lo exigía; el rechazo de una propuesta de devolución durante
+   la negociación no tenía campo en la UI y era opcional en el backend.
+   Ahora `chain.ts` rechaza el paso `reject` con `reasonRequired` si no hay
+   motivo, y la UI muestra el campo obligatorio.
+3. **Saldo disponible real** (regla 8/21: "saldo disponible = fondos en la
+   wallet − comprometido"). Se agregó `fetchUsdcBalance` (lee el balance USDC
+   de Horizon para la wallet del usuario) en `src/lib/stellar/network.ts`. El
+   perfil ahora muestra el saldo disponible real (`balance − comprometido`)
+   cuando hay un emisor de USDC configurado (`STELLAR_USDC_ISSUER`); en modo
+   demo, sin emisor configurado, sigue mostrando sólo lo comprometido, con la
+   etiqueta que ya aclaraba esa limitación.
+4. **"¿Cómo funciona?" en cada pantalla importante** (regla 22). Estaba sólo
+   en el detalle de la garantía. Se agregó también en el dashboard y en el
+   alta de nueva garantía, con texto propio de cada pantalla, siempre
+   colapsado por defecto.
+
+Efecto colateral corregido de paso: `proposePayloadSchema` exigía
+`toGuarantor`/`toLandlord` incluso para el paso `reject` (que sólo necesita
+`reason`), lo que rompía el request con un 422 antes de llegar a la
+validación de negocio. Se separó en `proposePayloadSchema` (campos opcionales,
+para la validación de forma en la ruta) y `settlementAmountsSchema` /
+`proposeWithReasonSchema` (campos requeridos, usados dentro de `propose`).
+
+Verificado con dos escenarios nuevos contra un Postgres real (edición +
+cancelación pendiente, incluyendo que el locador no puede editar ni aceptar
+una garantía ya cancelada; rechazo de devolución sin motivo devuelve 400
+`reasonRequired` y con motivo pasa) además de repetir los cinco escenarios
+anteriores para confirmar que no se rompió nada. `lint`, `typecheck`,
+`vitest` (24/24) y `next build` en verde.
+
+**Lo que sigue pendiente** (sin cambios respecto a la entrada anterior): job
+de expiración en segundo plano, notificaciones traducidas, tests
+automatizados en el repo, verificación contra testnet real, y la decisión
+sobre el link de invitación como fallback.

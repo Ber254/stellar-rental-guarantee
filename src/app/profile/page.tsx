@@ -7,7 +7,7 @@ import { getDictionary } from "@/lib/i18n";
 import { getLocale } from "@/lib/i18n/server";
 import { formatUsdc, toStroops, fromStroops } from "@/lib/money";
 import { listContracts } from "@/lib/services/contracts";
-import { shortenAddress } from "@/lib/stellar/network";
+import { fetchUsdcBalance, shortenAddress } from "@/lib/stellar/network";
 
 const COMMITTED_STATUSES = new Set([
   "PENDING_ACCEPTANCE",
@@ -23,7 +23,11 @@ export default async function ProfilePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [rows, locale] = await Promise.all([listContracts(user.id), getLocale()]);
+  const [rows, locale, walletBalance] = await Promise.all([
+    listContracts(user.id),
+    getLocale(),
+    user.stellarAddress ? fetchUsdcBalance(user.stellarAddress) : Promise.resolve(null),
+  ]);
   const t = getDictionary(locale);
 
   const committed = rows
@@ -32,6 +36,9 @@ export default async function ProfilePage() {
       const locked = row.guarantee?.lockedAmount ?? row.guarantee?.amount ?? row.contract.guaranteeAmount;
       return total + toStroops(locked);
     }, 0n);
+
+  const available =
+    walletBalance !== null ? toStroops(walletBalance) - committed : null;
 
   return (
     <div className="space-y-6">
@@ -53,13 +60,24 @@ export default async function ProfilePage() {
                 )
               }
             />
+            {walletBalance !== null && (
+              <Row label={t.profile.walletBalance} value={formatUsdc(walletBalance)} />
+            )}
           </dl>
         </div>
       </Card>
 
-      <Card title={t.profile.availableBalance} description={t.profile.balanceHint}>
-        <p className="text-lg font-semibold text-fg">{formatUsdc(fromStroops(committed))}</p>
-      </Card>
+      {available !== null ? (
+        <Card title={t.profile.availableBalanceReal} description={t.profile.balanceHintReal}>
+          <p className="text-lg font-semibold text-fg">
+            {formatUsdc(fromStroops(available < 0n ? 0n : available))}
+          </p>
+        </Card>
+      ) : (
+        <Card title={t.profile.availableBalance} description={t.profile.balanceHint}>
+          <p className="text-lg font-semibold text-fg">{formatUsdc(fromStroops(committed))}</p>
+        </Card>
+      )}
     </div>
   );
 }
