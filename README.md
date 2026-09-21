@@ -97,11 +97,23 @@ npx tsx scripts/demo-flow.ts
 | `PLATFORM_SECRET_KEY` | Account that submits the release transaction |
 | `DEMO_SIGNER_SECRETS` | Testnet-only throwaway keys for the scripted demo |
 | `NEXT_PUBLIC_DEMO_MODE` | Shows the demo banner in the UI |
+| `CRON_SECRET` | Authenticates the daily `/api/cron/expire` job (see below) |
 
 Demo mode: when `SOROBAN_CONTRACT_ID`, `STELLAR_USDC_CONTRACT_ID` or
 `PLATFORM_SECRET_KEY` are missing, every chain step is recorded as `simulated`
 and the UI labels it as such. Simulated activity is never presented as a real
 Stellar transaction.
+
+## Background expiry job
+
+`vercel.json` schedules Vercel Cron to call `GET /api/cron/expire` once a day.
+It sweeps every guarantee still `PENDING_ACCEPTANCE` past its one-month
+deadline (cancels it) or `ACTIVE` past its end date (marks it `EXPIRED`) —
+the same rule the app already applies lazily whenever someone opens a
+guarantee, just guaranteed to run even if nobody does. Requires `CRON_SECRET`
+to be set; without it the endpoint refuses every request. Outside Vercel, hit
+the same endpoint with `Authorization: Bearer $CRON_SECRET` from any
+scheduler (cron, GitHub Actions, etc.).
 
 ## Neon
 

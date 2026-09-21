@@ -78,12 +78,13 @@ UI.
 | Quien pone el dinero es el garante | Lo pone el `tenant` (inquilino) y lo crea él | Rol renombrado a `guarantor` en DB, contrato y UI | Hecho |
 | Contraparte por alias | Por token de invitación en un link | `landlordAlias` resuelve a un `user_id` existente al crear; ya no hay invitación por link | Hecho |
 | Rechazo con motivo | No existe rechazo de la invitación | Estado `REJECTED` + `rejection_reason` obligatorio | Hecho |
-| Expiración automática al mes | No existe | Chequeo perezoso en `getContractForUser`/`listContracts` (`applyPendingExpiry`) | Hecho — falta un job en background para guarantías que nadie vuelve a abrir |
+| Expiración automática al mes | No existe | Chequeo perezoso (`applyPendingExpiry`) + `expireStaleContracts` barrida diariamente por `/api/cron/expire` (Vercel Cron) | Hecho |
 | Comisión 0,05 % | No hay comisión | Cobrada on-chain (`fee_bps`) y reflejada off-chain (`agreements.fee_amount`) | Hecho |
 | Devolución unilateral del locador | Sólo el tenant puede pedir la devolución | `return_to_guarantor` / paso `return-unilateral` | Hecho |
 | Extensión | No existe | `propose_extension`/`accept_extension`/`cancel_extension`, con top-up o devolución de la diferencia | Hecho |
 | Estados humanos | Se muestran estados internos | `t.status[...]` en toda la UI, `STATUSES.md` como fuente de verdad | Hecho |
-| Notificaciones traducidas | `title`/`body` en inglés ya renderizado | Sigue en inglés; `notifications.kind` está tipado pero no se usa todavía para traducir | Pendiente |
+| Notificaciones traducidas | `title`/`body` en inglés ya renderizado | `notifications.kind` + `notifications.data` (jsonb); se renderizan con `notifications.titles[kind]`/`bodies[kind]` del diccionario en el idioma del que las lee, no del que las generó | Hecho |
 | Saldo disponible en el perfil | No existía | `fetchUsdcBalance` lee Horizon; el perfil muestra `balance − comprometido` cuando hay `STELLAR_USDC_ISSUER` configurado, y cae al monto comprometido (con la etiqueta aclarada) en modo demo | Hecho |
 | Editar/cancelar antes de la aceptación | No existía | `PATCH /api/contracts/[id]` y `POST /api/contracts/[id]/cancel`, sólo mientras `PENDING_ACCEPTANCE` y sólo el garante | Hecho |
+| Link de invitación como fallback del alta por alias | Se sacó por completo en la primera integración | **Decisión: no se repone.** El modelo SAFEXY asume que el locador ya tiene cuenta (es un requisito explícito: "si se envió a un alias inexistente no se permite"), así que un fallback por link reintroduciría el camino de "invitar a alguien sin cuenta" que el propio modelo descarta, además de duplicar el estado de aceptación (¿por alias o por token?) sin un caso de uso real que lo justifique hoy. Si en el futuro se quiere invitar gente sin cuenta, es una funcionalidad nueva (alta por email con cuenta pendiente), no un fallback. | Cerrado |
 | Motivo obligatorio al rechazar una devolución | Opcional y sin campo en la UI durante la negociación | `chain.ts` exige `reason` en el paso `reject`, la UI lo pide | Hecho |

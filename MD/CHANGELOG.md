@@ -12,29 +12,14 @@ están mergeadas *dentro* de `claude/dreamy-curie-eopllt`, más la integración
 completa de la capa de aplicación (esquema, cliente Stellar v2, servicios,
 UI). Si se ignora esto se pierde todo ese trabajo o se duplica.
 
-Orden de prioridad sugerido para lo que falta (detalle técnico de cada punto
-más abajo, sección "Pendiente" del 2026-09-20):
-
-1. **Job de expiración en segundo plano.** Hoy la cancelación por falta de
-   aceptación al mes y el pasaje a `EXPIRED` son perezosos (sólo recalculan
-   si alguien abre esa garantía puntual). Es lo más importante porque es una
-   regla de negocio explícita que hoy no se cumple sola.
-2. Traducir `notifications.title`/`body` usando `notifications.kind` (ya
-   tipado en el esquema) en vez de guardar texto en inglés ya renderizado.
-3. Tests automatizados de devolución parcial, devolución unilateral y
-   extensión (se verificaron a mano contra un Postgres real, no quedaron
-   como test del repo — ver la sección de abajo para el detalle exacto de
-   qué se probó).
-4. Correr el flujo completo contra el contrato desplegado en testnet real
-   (hoy sólo se verificó en modo simulado) — requiere cuentas fondeadas,
-   ver `TESTNET.md`.
-5. Decidir si se repone el link de invitación como fallback del alta por
-   alias (se sacó por completo; `BUSINESS_RULES.md` documentaba conservarlo
-   como fallback).
-
-~~Saldo real de wallet en el perfil~~ y ~~editar/cancelar antes de la
-aceptación~~ y ~~motivo obligatorio al rechazar una devolución~~ — resueltos,
-ver la entrada de más abajo.
+**Lo único que queda pendiente de verdad** es correr el flujo completo contra
+el contrato ya desplegado en testnet con cuentas fondeadas — no se pudo hacer
+desde este entorno de desarrollo, que no tiene salida de red ni a Stellar ni
+a Postgres externo (ver `TESTNET.md`). Todo lo demás de la lista de
+prioridades original (job de expiración en segundo plano, notificaciones
+traducidas, tests automatizados, saldo real de wallet, editar/cancelar antes
+de la aceptación, motivo obligatorio al rechazar, y la decisión sobre el link
+de invitación) está resuelto — ver las entradas del 2026-09-21 más abajo.
 
 ## 2026-09-20
 
@@ -239,3 +224,63 @@ anteriores para confirmar que no se rompió nada. `lint`, `typecheck`,
 de expiración en segundo plano, notificaciones traducidas, tests
 automatizados en el repo, verificación contra testnet real, y la decisión
 sobre el link de invitación como fallback.
+
+## 2026-09-21 — Job de expiración, notificaciones traducidas, tests, decisión de alcance
+
+Cierre de los cuatro puntos que quedaban en la lista de prioridades anterior.
+
+1. **Job de expiración en segundo plano.** `expireStaleContracts()` en
+   `contracts.ts` reutiliza exactamente la misma regla que el chequeo
+   perezoso (`applyPendingExpiry`), pero barre todas las garantías
+   `PENDING_ACCEPTANCE`/`ACTIVE` en vez de una sola. Expuesto en
+   `GET /api/cron/expire`, protegido con `CRON_SECRET` (rechaza toda
+   request si no está configurado — no hay modo abierto, porque esto puede
+   cancelar o vencer garantías reales). `vercel.json` lo programa a diario
+   vía Vercel Cron; fuera de Vercel, cualquier scheduler puede pegarle con
+   `Authorization: Bearer $CRON_SECRET`.
+2. **Notificaciones traducidas.** `notifications.kind` pasó a `NOT NULL` y
+   se agregó `notifications.data` (jsonb) con los valores de interpolación.
+   `notify()` ya no recibe `title`/`body` armados en inglés, sólo `kind` +
+   `data`; el kind se granularizó (por ejemplo `GUARANTEE_REJECTED` se
+   separó en `GUARANTEE_REJECTED_BY_LANDLORD`, `GUARANTEE_WITHDRAWN` y
+   `GUARANTEE_CANCELLED_UNFUNDED`, que antes compartían un mensaje
+   ambiguo). El diccionario tiene `notifications.titles[kind]` y
+   `notifications.bodies[kind]` en ambos idiomas; la página de
+   notificaciones interpola en el idioma de quien la lee, no del que la
+   generó. Filas viejas (`data` null) siguen mostrando su texto en inglés
+   ya guardado, como fallback.
+3. **Tests automatizados.** `business-rules.test.ts` y `alias.test.ts`
+   (puros, sin DB) más `services/settlement-flows.integration.test.ts`, que
+   corre contra un Postgres real y codifica exactamente los escenarios que
+   se venían verificando a mano: devoluciones parciales sucesivas + una
+   devolución unilateral que cierra la garantía, que un settlement no puede
+   superar el saldo bloqueado, motivo obligatorio al rechazar, extensión
+   con aumento y con disminución, editar/cancelar sólo antes de la
+   aceptación (y que el locador no puede hacerlo), expiración automática, y
+   que la comisión se cobra sólo sobre lo que recibe el garante. La suite
+   se salta sola (`describe.skipIf`) si no hay una base de datos
+   alcanzable, así que no rompe un entorno sin Postgres (por ejemplo, si
+   algún día se corre `npm test` en el build de Vercel).
+4. **Decisión de alcance: no se repone el link de invitación.** El modelo
+   SAFEXY ya asume que el locador tiene cuenta (alta por alias, "si se
+   envió a un alias inexistente no se permite"); un fallback por link
+   reabriría el caso que el modelo descarta a propósito. Se documenta como
+   decisión cerrada en `BUSINESS_RULES.md`, no como pendiente.
+
+Nota operativa para quien aplique `0002_notifications_data_kind.sql` sobre
+una base con datos de demo previos a este cambio: el `ALTER TYPE` del enum
+de notificaciones falla si hay filas con un valor de `kind` que ya no
+existe (por ejemplo `GUARANTEE_REJECTED`). Sobre una base sin datos reales
+(testnet/demo), lo más simple es vaciar `notifications` antes de migrar.
+
+Verificado: los tres scripts de verificación manuales anteriores
+(`demo-flow.ts` + los dos scripts ad hoc de las sesiones previas) se
+volvieron a correr contra Postgres real después de estos cambios y siguen
+pasando; se confirmó además que una notificación nueva se renderiza en
+español con los datos interpolados correctamente. `lint`, `typecheck`,
+`vitest` (43/43, siete de ellos de integración contra Postgres real),
+`next build` y `cargo test` (27/27) en verde.
+
+**Pendiente real:** correr contra el contrato desplegado en testnet con
+cuentas fondeadas (sigue sin poder hacerse desde este entorno de
+desarrollo, que no tiene salida de red a Stellar ni a Postgres externo).

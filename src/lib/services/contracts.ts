@@ -5,7 +5,7 @@ import { sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { isValidAlias, normalizeAlias } from "@/lib/alias";
-import { acceptanceDeadline, isPastAcceptanceDeadline } from "@/lib/business-rules";
+import { isPastAcceptanceDeadline } from "@/lib/business-rules";
 import { db } from "@/lib/db";
 import {
   agreements,
@@ -151,13 +151,11 @@ export async function createRentalContract(
       .where(eq(users.id, guarantor.id));
   }
 
-  await notify(
-    landlord.id,
-    contract.id,
-    "GUARANTEE_RECEIVED",
-    "New guarantee to review",
-    `${guarantor.name} sent you a guarantee (${reference}) for ${input.guaranteeAmount} USDC.`,
-  );
+  await notify(landlord.id, contract.id, "GUARANTEE_RECEIVED", {
+    name: guarantor.name,
+    reference,
+    amount: input.guaranteeAmount,
+  });
 
   return contract;
 }
@@ -265,13 +263,10 @@ export async function cancelPendingContract(guarantor: User, contractId: string)
     .set({ status: "CANCELLED", lockedAmount: "0" })
     .where(eq(guarantees.contractId, contract.id));
 
-  await notify(
-    contract.landlordId,
-    contract.id,
-    "GUARANTEE_REJECTED",
-    "Guarantee withdrawn",
-    `${guarantor.name} withdrew ${contract.reference} before you responded.`,
-  );
+  await notify(contract.landlordId, contract.id, "GUARANTEE_WITHDRAWN", {
+    name: guarantor.name,
+    reference: contract.reference,
+  });
 
   return updated;
 }
@@ -300,13 +295,10 @@ export async function acceptContract(landlord: User, contractId: string) {
     .where(eq(rentalContracts.id, contract.id))
     .returning();
 
-  await notify(
-    contract.guarantorId,
-    contract.id,
-    "GUARANTEE_ACCEPTED",
-    "Guarantee accepted",
-    `${landlord.name} accepted ${contract.reference}. You can now fund the guarantee.`,
-  );
+  await notify(contract.guarantorId, contract.id, "GUARANTEE_ACCEPTED", {
+    name: landlord.name,
+    reference: contract.reference,
+  });
 
   return updated;
 }
@@ -334,13 +326,11 @@ export async function rejectContract(landlord: User, contractId: string, reason:
     .where(eq(rentalContracts.id, contract.id))
     .returning();
 
-  await notify(
-    contract.guarantorId,
-    contract.id,
-    "GUARANTEE_REJECTED",
-    "Guarantee rejected",
-    `${landlord.name} rejected ${contract.reference}: ${reason}`,
-  );
+  await notify(contract.guarantorId, contract.id, "GUARANTEE_REJECTED_BY_LANDLORD", {
+    name: landlord.name,
+    reference: contract.reference,
+    reason,
+  });
 
   return updated;
 }
@@ -356,21 +346,10 @@ async function applyPendingExpiry(contract: RentalContract): Promise<RentalContr
       .set({ status: "CANCELLED", updatedAt: new Date() })
       .where(eq(rentalContracts.id, contract.id))
       .returning();
-    await notify(
-      contract.guarantorId,
-      contract.id,
-      "GUARANTEE_EXPIRED",
-      "Guarantee cancelled",
-      `${contract.reference} was not accepted within ${acceptanceDeadline(contract.startDate).toDateString()} and was cancelled automatically.`,
-    );
+    const data = { reference: contract.reference };
+    await notify(contract.guarantorId, contract.id, "GUARANTEE_EXPIRED", data);
     if (contract.landlordId) {
-      await notify(
-        contract.landlordId,
-        contract.id,
-        "GUARANTEE_EXPIRED",
-        "Guarantee cancelled",
-        `${contract.reference} expired without a response and was cancelled automatically.`,
-      );
+      await notify(contract.landlordId, contract.id, "GUARANTEE_EXPIRED", data);
     }
     return updated;
   }
@@ -383,6 +362,38 @@ async function applyPendingExpiry(contract: RentalContract): Promise<RentalContr
     return updated;
   }
   return contract;
+}
+
+/**
+ * Sweeps every guarantee that could be stale (still `PENDING_ACCEPTANCE` or
+ * `ACTIVE`) and applies the same expiry rule the lazy per-request check
+ * uses, so a guarantee expires on schedule even if nobody ever opens it
+ * again. Meant to be called from a scheduled job (see
+ * `/api/cron/expire`), not from a request path.
+ */
+export async function expireStaleContracts(): Promise<{
+  cancelled: number;
+  expired: number;
+}> {
+  const candidates = await db
+    .select()
+    .from(rentalContracts)
+    .where(
+      or(
+        eq(rentalContracts.status, "PENDING_ACCEPTANCE"),
+        eq(rentalContracts.status, "ACTIVE"),
+      ),
+    );
+
+  let cancelled = 0;
+  let expired = 0;
+  for (const contract of candidates) {
+    const after = await applyPendingExpiry(contract);
+    if (after.status === contract.status) continue;
+    if (after.status === "CANCELLED") cancelled += 1;
+    if (after.status === "EXPIRED") expired += 1;
+  }
+  return { cancelled, expired };
 }
 
 export async function listContracts(userId: string) {
@@ -494,15 +505,19 @@ export async function requireContractParty(contractId: string, userId: string) {
   return { contract, role };
 }
 
+/**
+ * `data` holds the interpolation values for `notifications.bodies[kind]` in
+ * the dictionary (see `src/lib/i18n/dictionaries.ts`) — the notification is
+ * rendered in the viewer's language when it's read, not at write time.
+ */
 export async function notify(
   userId: string | null,
   contractId: string,
   kind: (typeof notifications.kind.enumValues)[number],
-  title: string,
-  body: string,
+  data: Record<string, string>,
 ) {
   if (!userId) return;
-  await db.insert(notifications).values({ userId, contractId, kind, title, body });
+  await db.insert(notifications).values({ userId, contractId, kind, data });
 }
 
 export function counterpartyId(contract: RentalContract, userId: string) {

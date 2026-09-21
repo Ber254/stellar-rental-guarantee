@@ -2,6 +2,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   numeric,
   pgEnum,
   pgTable,
@@ -83,12 +84,15 @@ export const guaranteeStatusEnum = pgEnum("guarantee_status", [
 export const notificationKindEnum = pgEnum("notification_kind", [
   "GUARANTEE_RECEIVED",
   "GUARANTEE_ACCEPTED",
-  "GUARANTEE_REJECTED",
+  "GUARANTEE_REJECTED_BY_LANDLORD",
+  "GUARANTEE_WITHDRAWN",
+  "GUARANTEE_CANCELLED_UNFUNDED",
   "GUARANTEE_EXPIRED",
   "GUARANTEE_FUNDED",
   "RETURN_REQUESTED",
   "RETURN_APPROVED",
   "RETURN_REJECTED",
+  "RETURN_EXECUTED",
   "RETURN_UNILATERAL",
   "EXTENSION_PROPOSED",
   "EXTENSION_ACCEPTED",
@@ -347,8 +351,12 @@ export const notifications = pgTable(
     contractId: uuid("contract_id").references(() => rentalContracts.id, {
       onDelete: "cascade",
     }),
-    kind: notificationKindEnum("kind"),
-    title: text("title").notNull(),
+    kind: notificationKindEnum("kind").notNull(),
+    /** Interpolation values for `notifications.bodies[kind]` in the dictionary. */
+    data: jsonb("data").$type<Record<string, string>>(),
+    // Legacy pre-rendered English text, kept only for notifications created
+    // before the kind+data model — never written by new code.
+    title: text("title"),
     body: text("body"),
     readAt: timestamp("read_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -370,6 +378,7 @@ export type Proposal = typeof proposals.$inferSelect;
 export type Agreement = typeof agreements.$inferSelect;
 export type Extension = typeof extensions.$inferSelect;
 export type BlockchainTransaction = typeof blockchainTransactions.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;
 export type Property = typeof properties.$inferSelect;
 export type ContractStatus = RentalContract["status"];
 export type PartyRole = Proposal["proposedByRole"];
