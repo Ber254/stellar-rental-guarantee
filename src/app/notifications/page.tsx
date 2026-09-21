@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { notifications } from "@/lib/db/schema";
 import { getDictionary } from "@/lib/i18n";
 import { getLocale } from "@/lib/i18n/server";
+import { renderNotification } from "@/lib/notifications";
 
 export default async function NotificationsPage() {
   const user = await getCurrentUser();
@@ -23,7 +24,6 @@ export default async function NotificationsPage() {
     getLocale(),
   ]);
   const t = getDictionary(locale);
-  void t;
 
   return (
     <div className="space-y-6">
@@ -34,20 +34,23 @@ export default async function NotificationsPage() {
         </Card>
       ) : (
         <ul className="space-y-2">
-          {rows.map((row) => (
+          {rows.map((row) => {
+            const text = renderNotification(t, row);
+            return (
             <li key={row.id}>
               <Link
                 href={row.contractId ? `/contracts/${row.contractId}` : "#"}
                 className="block rounded-card border border-line bg-surface p-4 transition hover:border-accent"
               >
-                <p className="text-sm font-medium text-fg">{row.title}</p>
-                {row.body && <p className="mt-1 text-sm text-muted">{row.body}</p>}
+                <p className="text-sm font-medium text-fg">{text.title}</p>
+                {text.body && <p className="mt-1 text-sm text-muted">{text.body}</p>}
                 <p className="mt-1 text-xs text-muted">
                   {new Date(row.createdAt).toLocaleString(locale)}
                 </p>
               </Link>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>

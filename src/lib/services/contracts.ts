@@ -24,6 +24,12 @@ import {
   type User,
 } from "@/lib/db/schema";
 import { assertTransition } from "@/lib/contract-state";
+import { getDictionary } from "@/lib/i18n";
+import {
+  renderNotification,
+  type NotificationParams,
+  type NotificationTemplate,
+} from "@/lib/notifications";
 import { onChainIdFromReference } from "@/lib/stellar/guarantee-contract";
 import { badRequest, forbidden, notFound } from "./errors";
 
@@ -151,13 +157,11 @@ export async function createRentalContract(
       .where(eq(users.id, guarantor.id));
   }
 
-  await notify(
-    landlord.id,
-    contract.id,
-    "GUARANTEE_RECEIVED",
-    "New guarantee to review",
-    `${guarantor.name} sent you a guarantee (${reference}) for ${input.guaranteeAmount} USDC.`,
-  );
+  await notify(landlord.id, contract.id, "GUARANTEE_RECEIVED", "guaranteeReceived", {
+    actor: guarantor.name,
+    reference,
+    amount: input.guaranteeAmount,
+  });
 
   return contract;
 }
@@ -186,13 +190,10 @@ export async function acceptContract(landlord: User, contractId: string) {
     .where(eq(rentalContracts.id, contract.id))
     .returning();
 
-  await notify(
-    contract.guarantorId,
-    contract.id,
-    "GUARANTEE_ACCEPTED",
-    "Guarantee accepted",
-    `${landlord.name} accepted ${contract.reference}. You can now fund the guarantee.`,
-  );
+  await notify(contract.guarantorId, contract.id, "GUARANTEE_ACCEPTED", "guaranteeAccepted", {
+    actor: landlord.name,
+    reference: contract.reference,
+  });
 
   return updated;
 }
@@ -220,13 +221,11 @@ export async function rejectContract(landlord: User, contractId: string, reason:
     .where(eq(rentalContracts.id, contract.id))
     .returning();
 
-  await notify(
-    contract.guarantorId,
-    contract.id,
-    "GUARANTEE_REJECTED",
-    "Guarantee rejected",
-    `${landlord.name} rejected ${contract.reference}: ${reason}`,
-  );
+  await notify(contract.guarantorId, contract.id, "GUARANTEE_REJECTED", "guaranteeRejected", {
+    actor: landlord.name,
+    reference: contract.reference,
+    reason,
+  });
 
   return updated;
 }
@@ -246,16 +245,19 @@ async function applyPendingExpiry(contract: RentalContract): Promise<RentalContr
       contract.guarantorId,
       contract.id,
       "GUARANTEE_EXPIRED",
-      "Guarantee cancelled",
-      `${contract.reference} was not accepted within ${acceptanceDeadline(contract.startDate).toDateString()} and was cancelled automatically.`,
+      "guaranteeExpiredGuarantor",
+      {
+        reference: contract.reference,
+        deadline: acceptanceDeadline(contract.startDate).toISOString().slice(0, 10),
+      },
     );
     if (contract.landlordId) {
       await notify(
         contract.landlordId,
         contract.id,
         "GUARANTEE_EXPIRED",
-        "Guarantee cancelled",
-        `${contract.reference} expired without a response and was cancelled automatically.`,
+        "guaranteeExpiredLandlord",
+        { reference: contract.reference },
       );
     }
     return updated;
@@ -384,11 +386,26 @@ export async function notify(
   userId: string | null,
   contractId: string,
   kind: (typeof notifications.kind.enumValues)[number],
-  title: string,
-  body: string,
+  template: NotificationTemplate,
+  params: NotificationParams,
 ) {
   if (!userId) return;
-  await db.insert(notifications).values({ userId, contractId, kind, title, body });
+  // `title`/`body` are only the English fallback; the UI renders the template.
+  const fallback = renderNotification(getDictionary("en"), {
+    template,
+    params,
+    title: template,
+    body: null,
+  });
+  await db.insert(notifications).values({
+    userId,
+    contractId,
+    kind,
+    template,
+    params,
+    title: fallback.title,
+    body: fallback.body,
+  });
 }
 
 export function counterpartyId(contract: RentalContract, userId: string) {

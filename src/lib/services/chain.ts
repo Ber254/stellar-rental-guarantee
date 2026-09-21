@@ -306,13 +306,10 @@ async function applyStep(
         })
         .where(eq(guarantees.id, guarantee.id));
       await setStatus(contract, "ACTIVE");
-      await notify(
-        other,
-        contract.id,
-        "GUARANTEE_FUNDED",
-        "Guarantee funded",
-        `${formatUsdc(contract.guaranteeAmount)} are locked for ${contract.reference}.`,
-      );
+      await notify(other, contract.id, "GUARANTEE_FUNDED", "guaranteeFunded", {
+        amount: formatUsdc(contract.guaranteeAmount),
+        reference: contract.reference,
+      });
       break;
     }
     case "cancel": {
@@ -321,13 +318,10 @@ async function applyStep(
         .set({ status: "CANCELLED", lockedAmount: "0" })
         .where(eq(guarantees.id, guarantee.id));
       await setStatus(contract, "CANCELLED");
-      await notify(
-        other,
-        contract.id,
-        "GUARANTEE_REJECTED",
-        "Guarantee cancelled",
-        `${user.name} cancelled ${contract.reference} before it was funded.`,
-      );
+      await notify(other, contract.id, "GUARANTEE_REJECTED", "guaranteeCancelled", {
+        actor: user.name,
+        reference: contract.reference,
+      });
       break;
     }
     case "propose": {
@@ -364,15 +358,12 @@ async function applyStep(
           ? "NEGOTIATION"
           : "RETURN_REQUESTED";
       await setStatus(contract, nextStatus);
-      await notify(
-        other,
-        contract.id,
-        "RETURN_REQUESTED",
-        "Return proposal",
-        `${user.name} proposes ${formatUsdc(proposal.toGuarantor)} back and ${formatUsdc(
-          proposal.toLandlord,
-        )} to the landlord.`,
-      );
+      await notify(other, contract.id, "RETURN_REQUESTED", "returnProposed", {
+        actor: user.name,
+        reference: contract.reference,
+        toGuarantor: formatUsdc(proposal.toGuarantor),
+        toLandlord: formatUsdc(proposal.toLandlord),
+      });
       break;
     }
     case "accept": {
@@ -399,13 +390,10 @@ async function applyStep(
         landlordAcceptedAt: role === "LANDLORD" || current.proposedByRole === "LANDLORD" ? now : null,
       });
       await setStatus(contract, "AGREED");
-      await notify(
-        other,
-        contract.id,
-        "RETURN_APPROVED",
-        "Agreement reached",
-        `${user.name} accepted the distribution for ${contract.reference}.`,
-      );
+      await notify(other, contract.id, "RETURN_APPROVED", "returnAgreed", {
+        actor: user.name,
+        reference: contract.reference,
+      });
       break;
     }
     case "reject": {
@@ -428,10 +416,8 @@ async function applyStep(
         other,
         contract.id,
         "RETURN_REJECTED",
-        "Proposal rejected",
-        reason
-          ? `${user.name} rejected the proposal for ${contract.reference}: ${reason}`
-          : `${user.name} rejected the proposal for ${contract.reference}.`,
+        reason ? "returnRejected" : "returnRejectedNoReason",
+        { actor: user.name, reference: contract.reference, reason: reason ?? "" },
       );
       break;
     }
@@ -461,13 +447,9 @@ async function applyStep(
       }
 
       await setStatus(contract, newLocked <= 0n ? "COMPLETED" : restingStatus(contract));
-      await notify(
-        other,
-        contract.id,
-        "RETURN_APPROVED",
-        "Funds released",
-        `The agreed split for ${contract.reference} was paid out on Stellar.`,
-      );
+      await notify(other, contract.id, "RETURN_APPROVED", "returnExecuted", {
+        reference: contract.reference,
+      });
       break;
     }
     case "return-unilateral": {
@@ -508,13 +490,11 @@ async function applyStep(
         .where(eq(guarantees.id, guarantee.id));
 
       await setStatus(contract, newLocked <= 0n ? "COMPLETED" : restingStatus(contract));
-      await notify(
-        other,
-        contract.id,
-        "RETURN_UNILATERAL",
-        "Funds returned",
-        `${user.name} returned ${formatUsdc(returnAmount)} unilaterally for ${contract.reference}.`,
-      );
+      await notify(other, contract.id, "RETURN_UNILATERAL", "returnUnilateral", {
+        actor: user.name,
+        amount: formatUsdc(returnAmount),
+        reference: contract.reference,
+      });
       break;
     }
     case "extend-propose": {
@@ -530,13 +510,12 @@ async function applyStep(
         topUpAmount: fromStroops(topUp),
       });
 
-      await notify(
-        other,
-        contract.id,
-        "EXTENSION_PROPOSED",
-        "Extension proposed",
-        `${user.name} proposes extending ${contract.reference} to ${ext.newAmount} USDC until ${ext.newEndDate}.`,
-      );
+      await notify(other, contract.id, "EXTENSION_PROPOSED", "extensionProposed", {
+        actor: user.name,
+        reference: contract.reference,
+        amount: formatUsdc(ext.newAmount),
+        date: ext.newEndDate,
+      });
       break;
     }
     case "extend-accept": {
@@ -574,13 +553,10 @@ async function applyStep(
         .where(eq(rentalContracts.id, contract.id));
 
       await setStatus({ ...contract }, newLocked <= 0n ? "COMPLETED" : "ACTIVE");
-      await notify(
-        other,
-        contract.id,
-        "EXTENSION_ACCEPTED",
-        "Extension accepted",
-        `${user.name} accepted the extension for ${contract.reference}.`,
-      );
+      await notify(other, contract.id, "EXTENSION_ACCEPTED", "extensionAccepted", {
+        actor: user.name,
+        reference: contract.reference,
+      });
       break;
     }
     case "extend-cancel": {
@@ -590,13 +566,10 @@ async function applyStep(
         .update(extensions)
         .set({ status: "CANCELLED", resolvedAt: now })
         .where(eq(extensions.id, pending.id));
-      await notify(
-        other,
-        contract.id,
-        "EXTENSION_CANCELLED",
-        "Extension cancelled",
-        `${user.name} withdrew the proposed extension for ${contract.reference}.`,
-      );
+      await notify(other, contract.id, "EXTENSION_CANCELLED", "extensionCancelled", {
+        actor: user.name,
+        reference: contract.reference,
+      });
       break;
     }
   }

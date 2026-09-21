@@ -252,6 +252,72 @@ export const es = {
   },
   notifications: {
     empty: "Todavía no tenés notificaciones.",
+    templates: {
+      guaranteeReceived: {
+        title: "Nueva garantía para revisar",
+        body: "{actor} te constituyó la garantía {reference} por {amount} USDC.",
+      },
+      guaranteeAccepted: {
+        title: "Garantía aceptada",
+        body: "{actor} aceptó {reference}. Ya podés depositar la garantía.",
+      },
+      guaranteeRejected: {
+        title: "Garantía denegada",
+        body: "{actor} denegó {reference}: {reason}",
+      },
+      guaranteeExpiredGuarantor: {
+        title: "Garantía cancelada",
+        body: "{reference} no fue aceptada antes del {deadline} y se canceló automáticamente.",
+      },
+      guaranteeExpiredLandlord: {
+        title: "Garantía cancelada",
+        body: "{reference} venció sin respuesta y se canceló automáticamente.",
+      },
+      guaranteeFunded: {
+        title: "Garantía depositada",
+        body: "Hay {amount} USDC bloqueados para {reference}.",
+      },
+      guaranteeCancelled: {
+        title: "Garantía cancelada",
+        body: "{actor} canceló {reference} antes de depositarla.",
+      },
+      returnProposed: {
+        title: "Propuesta de devolución",
+        body: "{actor} propone devolver {toGuarantor} USDC al garante y {toLandlord} USDC al locador.",
+      },
+      returnAgreed: {
+        title: "Acuerdo alcanzado",
+        body: "{actor} aceptó el reparto de {reference}.",
+      },
+      returnRejected: {
+        title: "Propuesta rechazada",
+        body: "{actor} rechazó la propuesta de {reference}: {reason}",
+      },
+      returnRejectedNoReason: {
+        title: "Propuesta rechazada",
+        body: "{actor} rechazó la propuesta de {reference}.",
+      },
+      returnExecuted: {
+        title: "Fondos liberados",
+        body: "El reparto acordado de {reference} se pagó en Stellar.",
+      },
+      returnUnilateral: {
+        title: "Fondos devueltos",
+        body: "{actor} devolvió {amount} USDC de {reference} sin pedir nada a cambio.",
+      },
+      extensionProposed: {
+        title: "Extensión propuesta",
+        body: "{actor} propone extender {reference} a {amount} USDC hasta el {date}.",
+      },
+      extensionAccepted: {
+        title: "Extensión aceptada",
+        body: "{actor} aceptó la extensión de {reference}.",
+      },
+      extensionCancelled: {
+        title: "Extensión retirada",
+        body: "{actor} retiró la extensión propuesta para {reference}.",
+      },
+    },
   },
   status: {
     DRAFT: "Borrador",
@@ -588,6 +654,72 @@ export const en: Dictionary = {
   },
   notifications: {
     empty: "No notifications yet.",
+    templates: {
+      guaranteeReceived: {
+        title: "New guarantee to review",
+        body: "{actor} sent you the guarantee {reference} for {amount} USDC.",
+      },
+      guaranteeAccepted: {
+        title: "Guarantee accepted",
+        body: "{actor} accepted {reference}. You can now fund the guarantee.",
+      },
+      guaranteeRejected: {
+        title: "Guarantee rejected",
+        body: "{actor} rejected {reference}: {reason}",
+      },
+      guaranteeExpiredGuarantor: {
+        title: "Guarantee cancelled",
+        body: "{reference} was not accepted before {deadline} and was cancelled automatically.",
+      },
+      guaranteeExpiredLandlord: {
+        title: "Guarantee cancelled",
+        body: "{reference} expired without a response and was cancelled automatically.",
+      },
+      guaranteeFunded: {
+        title: "Guarantee funded",
+        body: "{amount} USDC are locked for {reference}.",
+      },
+      guaranteeCancelled: {
+        title: "Guarantee cancelled",
+        body: "{actor} cancelled {reference} before it was funded.",
+      },
+      returnProposed: {
+        title: "Return proposal",
+        body: "{actor} proposes {toGuarantor} USDC back to the guarantor and {toLandlord} USDC to the landlord.",
+      },
+      returnAgreed: {
+        title: "Agreement reached",
+        body: "{actor} accepted the distribution for {reference}.",
+      },
+      returnRejected: {
+        title: "Proposal rejected",
+        body: "{actor} rejected the proposal for {reference}: {reason}",
+      },
+      returnRejectedNoReason: {
+        title: "Proposal rejected",
+        body: "{actor} rejected the proposal for {reference}.",
+      },
+      returnExecuted: {
+        title: "Funds released",
+        body: "The agreed split for {reference} was paid out on Stellar.",
+      },
+      returnUnilateral: {
+        title: "Funds returned",
+        body: "{actor} returned {amount} USDC from {reference} unilaterally.",
+      },
+      extensionProposed: {
+        title: "Extension proposed",
+        body: "{actor} proposes extending {reference} to {amount} USDC until {date}.",
+      },
+      extensionAccepted: {
+        title: "Extension accepted",
+        body: "{actor} accepted the extension for {reference}.",
+      },
+      extensionCancelled: {
+        title: "Extension withdrawn",
+        body: "{actor} withdrew the extension proposed for {reference}.",
+      },
+    },
   },
   status: {
     DRAFT: "Draft",
