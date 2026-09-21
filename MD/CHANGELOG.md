@@ -3,6 +3,37 @@
 Sólo decisiones de producto y reglas de negocio. Los cambios de código viven en
 el historial de git.
 
+## Para quien retome el trabajo (Devin u otro agente)
+
+**Rama de partida obligatoria: `claude/dreamy-curie-eopllt`.** No arrancar
+desde `main` ni desde `devin/1789647103-i18n-themes` o
+`devin/1789910654-safexy-md` — esas dos ramas (PR #1 y PR #2 en GitHub) ya
+están mergeadas *dentro* de `claude/dreamy-curie-eopllt`, más la integración
+completa de la capa de aplicación (esquema, cliente Stellar v2, servicios,
+UI). Si se ignora esto se pierde todo ese trabajo o se duplica.
+
+Orden de prioridad sugerido para lo que falta (detalle técnico de cada punto
+más abajo, sección "Pendiente" del 2026-09-20):
+
+1. **Job de expiración en segundo plano.** Hoy la cancelación por falta de
+   aceptación al mes y el pasaje a `EXPIRED` son perezosos (sólo recalculan
+   si alguien abre esa garantía puntual). Es lo más importante porque es una
+   regla de negocio explícita que hoy no se cumple sola.
+2. Traducir `notifications.title`/`body` usando `notifications.kind` (ya
+   tipado en el esquema) en vez de guardar texto en inglés ya renderizado.
+3. Saldo real de wallet en el perfil (hoy sólo se muestra lo comprometido en
+   garantías; falta consultar el balance USDC en Horizon).
+4. Tests automatizados de devolución parcial, devolución unilateral y
+   extensión (se verificaron a mano contra un Postgres real, no quedaron
+   como test del repo — ver la sección de abajo para el detalle exacto de
+   qué se probó).
+5. Correr el flujo completo contra el contrato desplegado en testnet real
+   (hoy sólo se verificó en modo simulado) — requiere cuentas fondeadas,
+   ver `TESTNET.md`.
+6. Decidir si se repone el link de invitación como fallback del alta por
+   alias (se sacó por completo; `BUSINESS_RULES.md` documentaba conservarlo
+   como fallback).
+
 ## 2026-09-20
 
 - Se crea el context package `/MD` y se documenta el sistema actual antes de
