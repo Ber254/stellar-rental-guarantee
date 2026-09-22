@@ -1,0 +1,90 @@
+# BUSINESS_RULES — Reglas de negocio
+
+Toda regla configurable vive en un único módulo (`src/lib/business-rules.ts`),
+nunca duplicada en componentes o servicios.
+
+## Comisión
+
+- **0,05 % del valor devuelto**, cobrada en el momento de la devolución.
+- Se aplica sobre el monto que efectivamente se devuelve, no sobre el total de
+  la garantía.
+- Configurable centralmente; cualquier cambio se anota en `CHANGELOG.md`.
+
+Ejemplo:
+
+```
+Devolución:        1000 USDC
+Comisión (0,05 %):    0,50 USDC
+Neto al usuario:    999,50 USDC
+```
+
+Redondeo: la comisión se calcula en stroops (7 decimales) y se redondea **hacia
+arriba** al stroop; el neto es `devuelto − comisión`, de modo que la suma
+distribuida siempre iguala el monto liberado.
+
+## Expiración por falta de aceptación
+
+Si una garantía sigue pendiente **más de un mes después del inicio del período**:
+
+1. Se cancela automáticamente.
+2. El monto vuelve a estar disponible para el garante.
+3. Queda registrado en el historial y se notifica a ambas partes.
+
+## Quién puede hacer qué
+
+| Acción | Garante | Locador |
+| --- | --- | --- |
+| Crear garantía | Sí | — |
+| Aceptar / denegar | — | Sí (motivo obligatorio al denegar) |
+| Solicitar devolución total o parcial | Sí | — |
+| Aprobar / rechazar devolución | — | Sí (motivo obligatorio al rechazar) |
+| Devolución unilateral a favor del garante | — | Sí |
+| Iniciar extensión | Sí | — |
+| Aceptar extensión | — | Sí |
+| Retirar fondos de forma unilateral | No | No |
+
+## Fondos
+
+- Ninguna parte puede retirar fondos sin acuerdo; la plataforma no arbitra.
+- El monto de una garantía pendiente o activa está comprometido y no cuenta en
+  el saldo disponible.
+- Toda salida de dinero genera un registro de transacción con su hash.
+
+## Devolución parcial: qué pasa con el remanente
+
+**Decisión:** el remanente queda bloqueado y la garantía sigue activa por el
+monto reducido, sin cambiar el período.
+
+**Resuelto:** implementado como liberación parcial dentro del contrato
+(`contracts/safexy-guarantee`, desplegado en testnet como
+`CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV`). El contrato lleva
+un saldo `locked` que se descuenta en cada `execute_settlement` o
+`return_to_guarantor`; la garantía sigue `Active` mientras `locked > 0` y pasa
+a `Closed` sólo cuando llega a 0. No hay ciclo cerrar-y-recrear ni
+fragmentación del historial on-chain — ver `BLOCKCHAIN.md` para la interfaz
+completa y la verificación en testnet.
+
+Pendiente: el cliente TypeScript (`src/lib/stellar/guarantee-contract.ts`) y
+los servicios de la app todavía apuntan a la interfaz v1
+(`create_guarantee`/`propose_distribution`/`release_funds` sobre
+`tenant`/`landlord`) y al contrato viejo. Migrarlos a la interfaz v2 es el
+siguiente paso antes de poder ofrecer devoluciones parciales reales desde la
+UI.
+
+## Contradicciones con el comportamiento original (resueltas)
+
+| Regla SAFEXY | Comportamiento original | Resolución | Estado |
+| --- | --- | --- | --- |
+| Quien pone el dinero es el garante | Lo pone el `tenant` (inquilino) y lo crea él | Rol renombrado a `guarantor` en DB, contrato y UI | Hecho |
+| Contraparte por alias | Por token de invitación en un link | `landlordAlias` resuelve a un `user_id` existente al crear; ya no hay invitación por link | Hecho |
+| Rechazo con motivo | No existe rechazo de la invitación | Estado `REJECTED` + `rejection_reason` obligatorio | Hecho |
+| Expiración automática al mes | No existe | Chequeo perezoso (`applyPendingExpiry`) + `expireStaleContracts` barrida diariamente por `/api/cron/expire` (Vercel Cron) | Hecho |
+| Comisión 0,05 % | No hay comisión | Cobrada on-chain (`fee_bps`) y reflejada off-chain (`agreements.fee_amount`) | Hecho |
+| Devolución unilateral del locador | Sólo el tenant puede pedir la devolución | `return_to_guarantor` / paso `return-unilateral` | Hecho |
+| Extensión | No existe | `propose_extension`/`accept_extension`/`cancel_extension`, con top-up o devolución de la diferencia | Hecho |
+| Estados humanos | Se muestran estados internos | `t.status[...]` en toda la UI, `STATUSES.md` como fuente de verdad | Hecho |
+| Notificaciones traducidas | `title`/`body` en inglés ya renderizado | `notifications.kind` + `notifications.data` (jsonb); se renderizan con `notifications.titles[kind]`/`bodies[kind]` del diccionario en el idioma del que las lee, no del que las generó | Hecho |
+| Saldo disponible en el perfil | No existía | `fetchUsdcBalance` lee Horizon; el perfil muestra `balance − comprometido` cuando hay `STELLAR_USDC_ISSUER` configurado, y cae al monto comprometido (con la etiqueta aclarada) en modo demo | Hecho |
+| Editar/cancelar antes de la aceptación | No existía | `PATCH /api/contracts/[id]` y `POST /api/contracts/[id]/cancel`, sólo mientras `PENDING_ACCEPTANCE` y sólo el garante | Hecho |
+| Link de invitación como fallback del alta por alias | Se sacó por completo en la primera integración | **Decisión: no se repone.** El modelo SAFEXY asume que el locador ya tiene cuenta (es un requisito explícito: "si se envió a un alias inexistente no se permite"), así que un fallback por link reintroduciría el camino de "invitar a alguien sin cuenta" que el propio modelo descarta, además de duplicar el estado de aceptación (¿por alias o por token?) sin un caso de uso real que lo justifique hoy. Si en el futuro se quiere invitar gente sin cuenta, es una funcionalidad nueva (alta por email con cuenta pendiente), no un fallback. | Cerrado |
+| Motivo obligatorio al rechazar una devolución | Opcional y sin campo en la UI durante la negociación | `chain.ts` exige `reason` en el paso `reject`, la UI lo pide | Hecho |

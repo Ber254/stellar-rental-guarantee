@@ -2,15 +2,43 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { apiErrorMessage } from "@/lib/i18n";
+
+import { useI18n } from "./i18n-provider";
 import { Alert, Button, Card, Field, Input } from "./ui";
 
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [alias, setAlias] = useState("");
+  const [aliasCheck, setAliasCheck] = useState<{ alias: string; available: boolean } | null>(null);
   const isRegister = mode === "register";
+  const aliasTooShort = alias.trim().length < 3;
+  const aliasStatus: "idle" | "checking" | "available" | "unavailable" = aliasTooShort
+    ? "idle"
+    : aliasCheck?.alias !== alias
+      ? "checking"
+      : aliasCheck.available
+        ? "available"
+        : "unavailable";
+
+  useEffect(() => {
+    if (!isRegister || aliasTooShort) return;
+    let cancelled = false;
+    const timeout = setTimeout(async () => {
+      const response = await fetch(`/api/users/alias?alias=${encodeURIComponent(alias)}`);
+      const body = await response.json().catch(() => ({}));
+      if (!cancelled) setAliasCheck({ alias, available: Boolean(body.available) });
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [alias, isRegister, aliasTooShort]);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -26,7 +54,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
 
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      setError(body.error ?? "Something went wrong");
+      setError(apiErrorMessage(t, body, t.auth.genericError));
       return;
     }
     router.replace("/dashboard");
@@ -36,23 +64,51 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   return (
     <div className="mx-auto max-w-md">
       <Card
-        title={isRegister ? "Create your account" : "Sign in"}
+        title={isRegister ? t.auth.createTitle : t.auth.signInTitle}
         description={
-          isRegister
-            ? "You will use this account as tenant or as landlord."
-            : "Welcome back."
+          isRegister ? t.auth.createDescription : t.auth.signInDescription
         }
       >
         <form onSubmit={onSubmit} className="space-y-4">
           {isRegister && (
-            <Field label="Full name">
-              <Input name="name" required minLength={2} autoComplete="name" />
+            <Field label={t.auth.name}>
+              <Input name="name" required minLength={2} autoComplete="given-name" />
             </Field>
           )}
-          <Field label="Email">
+          {isRegister && (
+            <Field label={t.auth.lastName}>
+              <Input name="lastName" autoComplete="family-name" />
+            </Field>
+          )}
+          {isRegister && (
+            <Field
+              label={t.auth.alias}
+              hint={
+                aliasStatus === "checking"
+                  ? t.profile.aliasChecking
+                  : aliasStatus === "available"
+                    ? t.profile.aliasAvailable
+                    : aliasStatus === "unavailable"
+                      ? t.profile.aliasUnavailable
+                      : t.auth.aliasHint
+              }
+            >
+              <Input
+                name="alias"
+                required
+                minLength={3}
+                maxLength={30}
+                pattern="[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])?"
+                placeholder={t.auth.aliasPlaceholder}
+                value={alias}
+                onChange={(event) => setAlias(event.target.value.toLowerCase())}
+              />
+            </Field>
+          )}
+          <Field label={t.auth.email}>
             <Input name="email" type="email" required autoComplete="email" />
           </Field>
-          <Field label="Password">
+          <Field label={t.auth.password}>
             <Input
               name="password"
               type="password"
@@ -63,27 +119,34 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           </Field>
           {isRegister && (
             <Field
-              label="Stellar address (optional)"
-              hint="You can also connect a wallet later."
+              label={t.auth.stellarAddress}
+              hint={t.auth.stellarAddressHint}
             >
               <Input name="stellarAddress" placeholder="G..." />
             </Field>
           )}
           {error && <Alert tone="error">{error}</Alert>}
           <Button type="submit" disabled={pending} className="w-full">
-            {pending ? "Please wait…" : isRegister ? "Create account" : "Sign in"}
+            {pending
+              ? t.auth.wait
+              : isRegister
+                ? t.nav.signUp
+                : t.nav.signIn}
           </Button>
         </form>
-        <p className="mt-4 text-sm text-slate-500">
+        <p className="mt-4 text-sm text-muted">
           {isRegister ? (
             <>
-              Already have an account? <Link href="/login" className="underline">Sign in</Link>
+              {t.auth.haveAccount}{" "}
+              <Link href="/login" className="underline">
+                {t.nav.signIn}
+              </Link>
             </>
           ) : (
             <>
-              No account yet?{" "}
+              {t.auth.noAccount}{" "}
               <Link href="/register" className="underline">
-                Create one
+                {t.auth.createOne}
               </Link>
             </>
           )}

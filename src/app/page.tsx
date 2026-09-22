@@ -2,52 +2,44 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth";
+import { getDictionary } from "@/lib/i18n";
+import { getLocale } from "@/lib/i18n/server";
 import { Card } from "@/components/ui";
-
-const STEPS = [
-  ["1. Contract", "The tenant registers the rental and invites the landlord."],
-  ["2. Lock", "The deposit is locked in USDC inside a Soroban escrow."],
-  ["3. Return", "At the end of the lease the tenant asks for the deposit back."],
-  ["4. Agreement", "Both parties propose and counter until they agree on a split."],
-  ["5. Release", "The escrow pays exactly the agreed amounts on Stellar."],
-];
 
 export default async function Home() {
   if (await getCurrentUser()) redirect("/dashboard");
+  const t = getDictionary(await getLocale());
 
   return (
     <div className="space-y-10">
       <div className="space-y-4">
-        <h1 className="text-3xl font-semibold text-slate-900">
-          A rental deposit that neither side can touch alone
-        </h1>
-        <p className="max-w-2xl text-slate-600">
-          The guarantee is locked in USDC on Stellar. It is released only when
-          the tenant and the landlord agree on how to split it — the platform
-          never decides who is right and never holds the keys.
-        </p>
+        <h1 className="text-3xl font-semibold text-fg">{t.home.title}</h1>
+        <p className="max-w-2xl text-muted">{t.home.intro}</p>
         <div className="flex gap-3">
           <Link
             href="/register"
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+            className="rounded-card bg-accent px-4 py-2 text-sm font-medium text-accent-fg"
           >
-            Create account
+            {t.nav.signUp}
           </Link>
           <Link
             href="/login"
-            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium"
+            className="rounded-card border border-line bg-surface px-4 py-2 text-sm font-medium text-fg"
           >
-            Sign in
+            {t.nav.signIn}
           </Link>
         </div>
       </div>
 
-      <Card title="How it works">
+      <Card title={t.home.howItWorks}>
         <ol className="grid gap-3 sm:grid-cols-2">
-          {STEPS.map(([title, body]) => (
-            <li key={title} className="rounded-lg bg-slate-50 p-4">
-              <p className="text-sm font-semibold text-slate-900">{title}</p>
-              <p className="mt-1 text-sm text-slate-600">{body}</p>
+          {t.home.steps.map((step) => (
+            <li
+              key={step.title}
+              className="rounded-card border border-line bg-surface-muted p-4"
+            >
+              <p className="text-sm font-semibold text-fg">{step.title}</p>
+              <p className="mt-1 text-sm text-muted">{step.body}</p>
             </li>
           ))}
         </ol>

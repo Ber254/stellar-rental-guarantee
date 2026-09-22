@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { assertTransition, canTransition } from "./contract-state";
 
-describe("contract lifecycle", () => {
+describe("guarantee lifecycle", () => {
   it("allows the happy path", () => {
     const path = [
       "DRAFT",
@@ -12,7 +12,6 @@ describe("contract lifecycle", () => {
       "RETURN_REQUESTED",
       "NEGOTIATION",
       "AGREED",
-      "RELEASED",
       "COMPLETED",
     ] as const;
 
@@ -21,14 +20,25 @@ describe("contract lifecycle", () => {
     }
   });
 
+  it("supports a partial return that keeps the guarantee active", () => {
+    expect(canTransition("AGREED", "ACTIVE")).toBe(true);
+    expect(canTransition("ACTIVE", "RETURN_REQUESTED")).toBe(true);
+  });
+
   it("never reopens a finished guarantee", () => {
     expect(canTransition("COMPLETED", "NEGOTIATION")).toBe(false);
     expect(canTransition("RELEASED", "ACTIVE")).toBe(false);
     expect(canTransition("CANCELLED", "ACTIVE")).toBe(false);
+    expect(canTransition("REJECTED", "AWAITING_FUNDING")).toBe(false);
   });
 
   it("cannot skip funding", () => {
     expect(canTransition("PENDING_ACCEPTANCE", "ACTIVE")).toBe(false);
-    expect(() => assertTransition("AWAITING_FUNDING", "RELEASED")).toThrow();
+    expect(() => assertTransition("AWAITING_FUNDING", "COMPLETED")).toThrow();
+  });
+
+  it("expires back into an active or negotiating guarantee", () => {
+    expect(canTransition("EXPIRED", "ACTIVE")).toBe(true);
+    expect(canTransition("EXPIRED", "RETURN_REQUESTED")).toBe(true);
   });
 });

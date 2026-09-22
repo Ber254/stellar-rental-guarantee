@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["rental-guarantee"]
+members = ["safexy-guarantee"]
 
 [workspace.dependencies]
 soroban-sdk = "27.0.6"

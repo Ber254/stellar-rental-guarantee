@@ -2,6 +2,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   numeric,
   pgEnum,
   pgTable,
@@ -22,9 +23,16 @@ export const contractStatusEnum = pgEnum("contract_status", [
   "RELEASED",
   "COMPLETED",
   "CANCELLED",
+  "REJECTED",
+  "EXPIRED",
 ]);
 
-export const partyRoleEnum = pgEnum("party_role", ["TENANT", "LANDLORD"]);
+export const partyRoleEnum = pgEnum("party_role", ["GUARANTOR", "LANDLORD"]);
+
+export const proposalKindEnum = pgEnum("proposal_kind", [
+  "SETTLEMENT",
+  "UNILATERAL_RETURN",
+]);
 
 export const proposalStatusEnum = pgEnum("proposal_status", [
   "PENDING",
@@ -40,14 +48,24 @@ export const proposalActionEnum = pgEnum("proposal_action", [
   "COUNTER",
 ]);
 
+export const extensionStatusEnum = pgEnum("extension_status", [
+  "PENDING",
+  "ACCEPTED",
+  "CANCELLED",
+]);
+
 export const txKindEnum = pgEnum("tx_kind", [
   "CREATE_GUARANTEE",
   "FUND_GUARANTEE",
-  "REQUEST_RELEASE",
-  "PROPOSE_DISTRIBUTION",
-  "ACCEPT_PROPOSAL",
-  "RELEASE_FUNDS",
   "CANCEL_GUARANTEE",
+  "PROPOSE_SETTLEMENT",
+  "ACCEPT_SETTLEMENT",
+  "REJECT_SETTLEMENT",
+  "EXECUTE_SETTLEMENT",
+  "RETURN_TO_GUARANTOR",
+  "PROPOSE_EXTENSION",
+  "ACCEPT_EXTENSION",
+  "CANCEL_EXTENSION",
 ]);
 
 export const txStatusEnum = pgEnum("tx_status", [
@@ -63,19 +81,58 @@ export const guaranteeStatusEnum = pgEnum("guarantee_status", [
   "CANCELLED",
 ]);
 
+export const notificationKindEnum = pgEnum("notification_kind", [
+  "GUARANTEE_RECEIVED",
+  "GUARANTEE_ACCEPTED",
+  "GUARANTEE_REJECTED_BY_LANDLORD",
+  "GUARANTEE_WITHDRAWN",
+  "GUARANTEE_CANCELLED_UNFUNDED",
+  "GUARANTEE_EXPIRED",
+  "GUARANTEE_FUNDED",
+  "RETURN_REQUESTED",
+  "RETURN_APPROVED",
+  "RETURN_REJECTED",
+  "RETURN_EXECUTED",
+  "RETURN_UNILATERAL",
+  "EXTENSION_PROPOSED",
+  "EXTENSION_ACCEPTED",
+  "EXTENSION_CANCELLED",
+]);
+
 export const users = pgTable(
   "users",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     email: text("email").notNull(),
     name: text("name").notNull(),
+    lastName: text("last_name"),
+    photoUrl: text("photo_url"),
+    alias: text("alias"),
     passwordHash: text("password_hash").notNull(),
     stellarAddress: text("stellar_address"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
   },
-  (table) => [uniqueIndex("users_email_unique").on(table.email)],
+  (table) => [
+    uniqueIndex("users_email_unique").on(table.email),
+    uniqueIndex("users_alias_unique").on(table.alias),
+  ],
+);
+
+export const userAliasHistory = pgTable(
+  "user_alias_history",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    alias: text("alias").notNull(),
+    changedAt: timestamp("changed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("user_alias_history_user_idx").on(table.userId)],
 );
 
 export const properties = pgTable("properties", {
@@ -95,19 +152,17 @@ export const rentalContracts = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     reference: text("reference").notNull(),
-    propertyId: uuid("property_id")
-      .notNull()
-      .references(() => properties.id, { onDelete: "restrict" }),
-    tenantId: uuid("tenant_id")
+    propertyId: uuid("property_id").references(() => properties.id, {
+      onDelete: "restrict",
+    }),
+    guarantorId: uuid("guarantor_id")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
-    landlordId: uuid("landlord_id").references(() => users.id, {
-      onDelete: "set null",
-    }),
-    landlordName: text("landlord_name").notNull(),
-    landlordEmail: text("landlord_email"),
-    tenantWallet: text("tenant_wallet").notNull(),
-    landlordWallet: text("landlord_wallet").notNull(),
+    landlordId: uuid("landlord_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    guarantorWallet: text("guarantor_wallet").notNull(),
+    landlordWallet: text("landlord_wallet"),
     guaranteeAmount: numeric("guarantee_amount", {
       precision: 20,
       scale: 7,
@@ -117,8 +172,10 @@ export const rentalContracts = pgTable(
     endDate: timestamp("end_date", { withTimezone: true }).notNull(),
     notes: text("notes"),
     status: contractStatusEnum("status").notNull().default("DRAFT"),
+    rejectionReason: text("rejection_reason"),
     inviteToken: text("invite_token").notNull(),
     acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -129,7 +186,7 @@ export const rentalContracts = pgTable(
   (table) => [
     uniqueIndex("rental_contracts_reference_unique").on(table.reference),
     uniqueIndex("rental_contracts_invite_token_unique").on(table.inviteToken),
-    index("rental_contracts_tenant_idx").on(table.tenantId),
+    index("rental_contracts_guarantor_idx").on(table.guarantorId),
     index("rental_contracts_landlord_idx").on(table.landlordId),
   ],
 );
@@ -142,6 +199,8 @@ export const guarantees = pgTable(
       .notNull()
       .references(() => rentalContracts.id, { onDelete: "cascade" }),
     amount: numeric("amount", { precision: 20, scale: 7 }).notNull(),
+    lockedAmount: numeric("locked_amount", { precision: 20, scale: 7 }),
+    fundedAmount: numeric("funded_amount", { precision: 20, scale: 7 }),
     assetCode: text("asset_code").notNull().default("USDC"),
     onChainId: text("on_chain_id").notNull(),
     sorobanContractId: text("soroban_contract_id"),
@@ -166,12 +225,13 @@ export const proposals = pgTable(
     contractId: uuid("contract_id")
       .notNull()
       .references(() => rentalContracts.id, { onDelete: "cascade" }),
+    kind: proposalKindEnum("kind").notNull().default("SETTLEMENT"),
     proposedBy: uuid("proposed_by")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
     proposedByRole: partyRoleEnum("proposed_by_role").notNull(),
+    toGuarantor: numeric("to_guarantor", { precision: 20, scale: 7 }).notNull(),
     toLandlord: numeric("to_landlord", { precision: 20, scale: 7 }).notNull(),
-    toTenant: numeric("to_tenant", { precision: 20, scale: 7 }).notNull(),
     reason: text("reason"),
     status: proposalStatusEnum("status").notNull().default("PENDING"),
     round: integer("round").notNull().default(1),
@@ -212,17 +272,50 @@ export const agreements = pgTable(
     proposalId: uuid("proposal_id")
       .notNull()
       .references(() => proposals.id, { onDelete: "restrict" }),
+    toGuarantor: numeric("to_guarantor", { precision: 20, scale: 7 }).notNull(),
     toLandlord: numeric("to_landlord", { precision: 20, scale: 7 }).notNull(),
-    toTenant: numeric("to_tenant", { precision: 20, scale: 7 }).notNull(),
-    tenantAcceptedAt: timestamp("tenant_accepted_at", { withTimezone: true }),
+    feeAmount: numeric("fee_amount", { precision: 20, scale: 7 }),
+    guarantorAcceptedAt: timestamp("guarantor_accepted_at", {
+      withTimezone: true,
+    }),
     landlordAcceptedAt: timestamp("landlord_accepted_at", {
       withTimezone: true,
     }),
+    executedAt: timestamp("executed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
   },
-  (table) => [uniqueIndex("agreements_contract_unique").on(table.contractId)],
+  (table) => [index("agreements_contract_idx").on(table.contractId)],
+);
+
+export const extensions = pgTable(
+  "extensions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contractId: uuid("contract_id")
+      .notNull()
+      .references(() => rentalContracts.id, { onDelete: "cascade" }),
+    proposedNewEndDate: timestamp("proposed_new_end_date", {
+      withTimezone: true,
+    }).notNull(),
+    proposedNewAmount: numeric("proposed_new_amount", {
+      precision: 20,
+      scale: 7,
+    }).notNull(),
+    topUpAmount: numeric("top_up_amount", { precision: 20, scale: 7 })
+      .notNull()
+      .default("0"),
+    refundAmount: numeric("refund_amount", { precision: 20, scale: 7 })
+      .notNull()
+      .default("0"),
+    status: extensionStatusEnum("status").notNull().default("PENDING"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (table) => [index("extensions_contract_idx").on(table.contractId)],
 );
 
 export const blockchainTransactions = pgTable(
@@ -258,7 +351,12 @@ export const notifications = pgTable(
     contractId: uuid("contract_id").references(() => rentalContracts.id, {
       onDelete: "cascade",
     }),
-    title: text("title").notNull(),
+    kind: notificationKindEnum("kind").notNull(),
+    /** Interpolation values for `notifications.bodies[kind]` in the dictionary. */
+    data: jsonb("data").$type<Record<string, string>>(),
+    // Legacy pre-rendered English text, kept only for notifications created
+    // before the kind+data model — never written by new code.
+    title: text("title"),
     body: text("body"),
     readAt: timestamp("read_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -278,7 +376,9 @@ export type RentalContract = typeof rentalContracts.$inferSelect;
 export type Guarantee = typeof guarantees.$inferSelect;
 export type Proposal = typeof proposals.$inferSelect;
 export type Agreement = typeof agreements.$inferSelect;
+export type Extension = typeof extensions.$inferSelect;
 export type BlockchainTransaction = typeof blockchainTransactions.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;
 export type Property = typeof properties.$inferSelect;
 export type ContractStatus = RentalContract["status"];
 export type PartyRole = Proposal["proposedByRole"];

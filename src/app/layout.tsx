@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { I18nProvider } from "@/components/i18n-provider";
 import { SiteHeader } from "@/components/site-header";
+import { getDictionary } from "@/lib/i18n";
+import { getLocale, getTheme } from "@/lib/i18n/server";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,23 +16,28 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Rental Guarantee on Stellar",
-  description:
-    "Lock a rental deposit in a Soroban escrow and release it only when tenant and landlord agree.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { meta } = getDictionary(await getLocale());
+  return { title: meta.title, description: meta.description };
+}
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const [locale, theme] = await Promise.all([getLocale(), getTheme()]);
+  const dictionary = getDictionary(locale);
+
   return (
     <html
-      lang="en"
+      lang={locale}
+      data-theme={theme}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">
-        <SiteHeader />
-        <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
-          {children}
-        </main>
+      <body className="flex min-h-full flex-col bg-bg text-fg">
+        <I18nProvider locale={locale} dictionary={dictionary}>
+          <SiteHeader theme={theme} />
+          <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
+            {children}
+          </main>
+        </I18nProvider>
       </body>
     </html>
   );

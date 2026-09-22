@@ -9,7 +9,7 @@
 | Domain | `src/lib/services` (contracts, chain steps), `src/lib/contract-state.ts` |
 | Persistence | Drizzle ORM over PostgreSQL (Neon in production) |
 | Chain | `src/lib/stellar` (network, contract bindings, demo signer) |
-| Escrow | Soroban contract in `contracts/rental-guarantee` |
+| Escrow | Soroban contract in `contracts/safexy-guarantee` |
 
 ## Request flow for a chain action
 

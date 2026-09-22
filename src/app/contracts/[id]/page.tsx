@@ -1,11 +1,13 @@
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { ContractActions } from "@/components/contract-actions";
+import { HowItWorks } from "@/components/how-it-works";
 import { Alert, Card, Row, StatusBadge } from "@/components/ui";
 import { WalletProvider } from "@/components/wallet";
 import { getCurrentUser } from "@/lib/auth";
 import { isChainConfigured } from "@/lib/env";
+import { getDictionary, interpolate } from "@/lib/i18n";
+import { getLocale } from "@/lib/i18n/server";
 import { formatUsdc } from "@/lib/money";
 import { getContractDetail } from "@/lib/services/contracts";
 import { explorerTxUrl, networkConfig, shortenAddress } from "@/lib/stellar/network";
@@ -23,55 +25,86 @@ export default async function ContractPage({
   if (!user) redirect("/login");
 
   const { id } = await params;
-  const detail = await getContractDetail(id, user.id);
+  const [detail, locale] = await Promise.all([
+    getContractDetail(id, user.id),
+    getLocale(),
+  ]);
+  const t = getDictionary(locale);
   const { contract, property, guarantee, role } = detail;
+  const locked = guarantee?.lockedAmount ?? guarantee?.amount ?? contract.guaranteeAmount;
 
   const pending = detail.proposals.find((proposal) => proposal.status === "PENDING");
-  const host = (await headers()).get("host");
-  const inviteUrl =
-    role === "TENANT" && contract.status === "PENDING_ACCEPTANCE" && host
-      ? `${host.startsWith("localhost") ? "http" : "https"}://${host}/invite/${contract.inviteToken}`
-      : null;
 
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">{property.label}</h1>
-          <p className="text-sm text-slate-500">
-            {contract.reference} · {property.address}
+          <h1 className="text-2xl font-semibold text-fg">
+            {property?.label ?? contract.reference}
+          </h1>
+          <p className="text-sm text-muted">
+            {contract.reference}
+            {property?.address ? ` · ${property.address}` : ""}
           </p>
         </div>
-        <StatusBadge status={contract.status} />
+        <StatusBadge status={contract.status} label={t.status[contract.status]} />
       </div>
 
-      {!isChainConfigured() && (
-        <Alert tone="warning">
-          Demo mode: the escrow is simulated off-chain because no Soroban
-          contract is configured. No Stellar transaction is submitted.
+      {!isChainConfigured() && <Alert tone="warning">{t.contract.demoWarning}</Alert>}
+      {contract.status === "REJECTED" && contract.rejectionReason && (
+        <Alert tone="error">
+          {t.contract.rejectionReason}: {contract.rejectionReason}
         </Alert>
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title="Contract">
+        <Card title={t.contract.detailsTitle}>
           <dl>
-            <Row label="Guarantee" value={formatUsdc(contract.guaranteeAmount)} />
+            <Row label={t.contract.reference} value={contract.reference} />
+            <Row
+              label={t.contract.guarantee}
+              value={formatUsdc(contract.guaranteeAmount)}
+            />
+            <Row label={t.contract.locked} value={formatUsdc(locked)} />
             {contract.rentAmount && (
-              <Row label="Monthly rent" value={formatUsdc(contract.rentAmount)} />
+              <Row label={t.contract.rent} value={formatUsdc(contract.rentAmount)} />
             )}
-            <Row label="Lease" value={`${formatDate(contract.startDate)} → ${formatDate(contract.endDate)}`} />
-            <Row label="Tenant" value={detail.tenant?.name ?? "—"} />
-            <Row label="Landlord" value={detail.landlord?.name ?? contract.landlordName} />
             <Row
-              label="Tenant wallet"
-              value={<span className="font-mono">{shortenAddress(contract.tenantWallet)}</span>}
+              label={t.contract.lease}
+              value={`${formatDate(contract.startDate)} → ${formatDate(contract.endDate)}`}
             />
             <Row
-              label="Landlord wallet"
-              value={<span className="font-mono">{shortenAddress(contract.landlordWallet)}</span>}
+              label={t.contract.guarantor}
+              value={detail.guarantor ? `@${detail.guarantor.alias ?? detail.guarantor.name}` : "—"}
             />
-            <Row label="Escrow status" value={guarantee?.status ?? "—"} />
+            <Row
+              label={t.contract.landlord}
+              value={detail.landlord ? `@${detail.landlord.alias ?? detail.landlord.name}` : "—"}
+            />
+            <Row
+              label={t.contract.guarantorWallet}
+              value={
+                <span className="font-mono">{shortenAddress(contract.guarantorWallet)}</span>
+              }
+            />
+            <Row
+              label={t.contract.landlordWallet}
+              value={
+                contract.landlordWallet ? (
+                  <span className="font-mono">{shortenAddress(contract.landlordWallet)}</span>
+                ) : (
+                  <span className="text-muted">{t.contract.landlordNoWallet}</span>
+                )
+              }
+            />
+            <Row
+              label={t.contract.escrowStatus}
+              value={guarantee ? t.guaranteeStatus[guarantee.status] : "—"}
+            />
           </dl>
+          <div className="mt-4">
+            <HowItWorks label={t.contract.howItWorks} body={t.contract.howItWorksBody} />
+          </div>
         </Card>
 
         <WalletProvider networkPassphrase={networkConfig().networkPassphrase}>
@@ -79,38 +112,61 @@ export default async function ContractPage({
             contractId={contract.id}
             role={role}
             status={contract.status}
-            amount={contract.guaranteeAmount}
+            landlordName={detail.landlord?.name ?? "—"}
+            locked={locked}
             escrowRegistered={Boolean(guarantee?.sorobanContractId) || !isChainConfigured()}
             pendingProposal={
               pending
                 ? {
                     id: pending.id,
+                    toGuarantor: pending.toGuarantor,
                     toLandlord: pending.toLandlord,
-                    toTenant: pending.toTenant,
                     mine: pending.proposedBy === user.id,
                   }
                 : null
             }
-            inviteUrl={inviteUrl}
+            pendingExtension={
+              detail.pendingExtension
+                ? {
+                    proposedNewAmount: detail.pendingExtension.proposedNewAmount,
+                    proposedNewEndDate: detail.pendingExtension.proposedNewEndDate.toISOString(),
+                  }
+                : null
+            }
+            editableDefaults={{
+              guaranteeAmount: contract.guaranteeAmount,
+              rentAmount: contract.rentAmount ?? "",
+              startDate: formatDate(contract.startDate),
+              endDate: formatDate(contract.endDate),
+              notes: contract.notes ?? "",
+            }}
           />
         </WalletProvider>
       </div>
 
       {detail.proposals.length > 0 && (
-        <Card title="Negotiation" description="Every round is kept for both parties.">
+        <Card
+          title={t.contract.negotiationTitle}
+          description={t.contract.negotiationDescription}
+        >
           <ol className="space-y-2">
             {detail.proposals.map((proposal) => (
               <li
                 key={proposal.id}
-                className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3 text-sm"
+                className="flex items-center justify-between rounded-card border border-line bg-surface-muted px-4 py-3 text-sm text-fg"
               >
                 <span>
-                  Round {proposal.round} ·{" "}
-                  {proposal.proposedByRole === "TENANT" ? "Tenant" : "Landlord"}:{" "}
-                  {formatUsdc(proposal.toLandlord)} to landlord /{" "}
-                  {formatUsdc(proposal.toTenant)} to tenant
+                  {t.contract.round} {proposal.round} ·{" "}
+                  {proposal.proposedByRole === "GUARANTOR"
+                    ? t.dashboard.roleGuarantor
+                    : t.dashboard.roleLandlord}
+                  :{" "}
+                  {interpolate(t.contract.splitLine, {
+                    guarantor: formatUsdc(proposal.toGuarantor),
+                    landlord: formatUsdc(proposal.toLandlord),
+                  })}
                 </span>
-                <span className="text-xs font-medium uppercase text-slate-500">
+                <span className="text-xs font-medium uppercase text-muted">
                   {proposal.status}
                 </span>
               </li>
@@ -119,27 +175,27 @@ export default async function ContractPage({
         </Card>
       )}
 
-      <Card title="Stellar activity">
+      <Card title={t.contract.activityTitle}>
         {detail.transactions.length === 0 ? (
-          <p className="text-sm text-slate-500">No activity yet.</p>
+          <p className="text-sm text-muted">{t.contract.noActivity}</p>
         ) : (
           <ul className="space-y-2 text-sm">
             {detail.transactions.map((tx) => (
               <li
                 key={tx.id}
-                className="flex items-center justify-between gap-4 border-b border-slate-100 pb-2 last:border-none"
+                className="flex items-center justify-between gap-4 border-b border-line pb-2 last:border-none"
               >
-                <span>
+                <span className="text-fg">
                   {tx.kind}
                   {tx.simulated && (
-                    <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] uppercase text-amber-800">
-                      simulated
+                    <span className="ml-2 rounded bg-warn-bg px-1.5 py-0.5 text-[10px] uppercase text-warn-fg">
+                      {t.contract.simulated}
                     </span>
                   )}
                 </span>
                 {tx.txHash ? (
                   <a
-                    className="font-mono text-xs text-sky-700 underline"
+                    className="font-mono text-xs text-accent underline"
                     href={explorerTxUrl(tx.txHash)}
                     target="_blank"
                     rel="noreferrer"
@@ -147,7 +203,7 @@ export default async function ContractPage({
                     {tx.txHash.slice(0, 10)}…
                   </a>
                 ) : (
-                  <span className="text-xs text-slate-400">off-chain</span>
+                  <span className="text-xs text-muted">{t.contract.offChain}</span>
                 )}
               </li>
             ))}

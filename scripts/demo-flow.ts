@@ -4,9 +4,9 @@
  *   npm run dev
  *   npx tsx scripts/demo-flow.ts [baseUrl]
  *
- * It exercises the same HTTP API the UI uses: contract creation, landlord
- * acceptance, funding, return request, a 300/700 proposal, a 150/850 counter,
- * acceptance and release.
+ * It exercises the same HTTP API the UI uses: registration by alias, a
+ * guarantee sent by alias, landlord acceptance, funding, a return request, a
+ * 300/700 proposal, a 150/850 counter, acceptance and execution.
  */
 import { randomBytes } from "node:crypto";
 
@@ -51,77 +51,88 @@ function walletFor(name: string): string {
 }
 
 function step(message: string) {
-  console.log(`\u2713 ${message}`);
+  console.log(`✓ ${message}`);
 }
 
 async function main() {
   const suffix = randomBytes(4).toString("hex");
-  const tenant = new Client("tenant");
+  const guarantor = new Client("guarantor");
   const landlord = new Client("landlord");
 
-  await tenant.call("/api/auth/register", {
-    name: "Alice Tenant",
+  const guarantorWallet = walletFor("DEMO_GUARANTOR_WALLET");
+  const landlordWallet = walletFor("DEMO_LANDLORD_WALLET");
+
+  await guarantor.call("/api/auth/register", {
+    name: "Alice Guarantor",
+    alias: `alice.${suffix}`,
     email: `alice+${suffix}@example.com`,
     password: "demo1234",
+    stellarAddress: guarantorWallet,
   });
   await landlord.call("/api/auth/register", {
     name: "Bob Landlord",
+    alias: `bob.${suffix}`,
     email: `bob+${suffix}@example.com`,
     password: "demo1234",
+    stellarAddress: landlordWallet,
   });
   step("both parties registered");
 
-  const { contract } = await tenant.call("/api/contracts", {
-    propertyLabel: "Apartment 4B",
-    propertyAddress: "Calle Mayor 10, Madrid",
-    landlordName: "Bob Landlord",
-    landlordEmail: `bob+${suffix}@example.com`,
-    tenantWallet: walletFor("DEMO_TENANT_WALLET"),
-    landlordWallet: walletFor("DEMO_LANDLORD_WALLET"),
+  const { contract } = await guarantor.call("/api/contracts", {
+    landlordAlias: `bob.${suffix}`,
+    guarantorWallet,
     guaranteeAmount: "1000",
     rentAmount: "850",
     startDate: "2026-01-01",
     endDate: "2026-12-31",
   });
-  step(`contract ${contract.reference} created`);
+  step(`guarantee ${contract.reference} created`);
 
-  await landlord.call(`/api/invites/${contract.inviteToken}`);
-  step("landlord accepted the contract");
+  await landlord.call(`/api/contracts/${contract.id}/accept`);
+  step("landlord accepted the guarantee");
 
   const chain = (client: Client, body: Record<string, unknown>) =>
     client.call(`/api/contracts/${contract.id}/chain`, body);
 
-  await chain(tenant, { step: "create" });
-  await chain(tenant, { step: "fund" });
+  await chain(guarantor, { step: "create" });
+  await chain(guarantor, { step: "fund" });
   step("guarantee funded and locked");
 
-  await chain(tenant, { step: "request-release" });
-  step("tenant requested the deposit back");
+  await chain(guarantor, {
+    step: "propose",
+    propose: { toGuarantor: "1000", toLandlord: "0", reason: "End of lease" },
+  });
+  step("guarantor requested the full deposit back");
 
   await chain(landlord, {
     step: "propose",
-    propose: { toLandlord: "300", toTenant: "700", reason: "Damaged wall" },
+    propose: { toGuarantor: "700", toLandlord: "300", reason: "Damaged wall" },
   });
-  step("landlord proposed 300/700");
+  step("landlord countered 700/300");
 
-  await chain(tenant, {
+  await chain(guarantor, {
     step: "propose",
-    propose: { toLandlord: "150", toTenant: "850", reason: "Partial wear" },
+    propose: { toGuarantor: "850", toLandlord: "150", reason: "Partial wear" },
   });
-  step("tenant countered 150/850");
+  step("guarantor countered 850/150");
 
   await chain(landlord, { step: "accept" });
   step("landlord accepted the counter offer");
 
-  await chain(tenant, { step: "release" });
+  await chain(guarantor, { step: "execute" });
   step("funds released");
 
-  const detail = await tenant.call(`/api/contracts/${contract.id}`, undefined, "GET");
+  const detail = await guarantor.call(`/api/contracts/${contract.id}`, undefined, "GET");
   if (detail.contract.status !== "COMPLETED") {
     throw new Error(`Expected COMPLETED, got ${detail.contract.status}`);
   }
+  const finalProposal = detail.proposals.find(
+    (p: { status: string }) => p.status === "ACCEPTED",
+  );
   console.log(
-    `\nFinal split: ${detail.agreement.toLandlord} USDC to the landlord, ${detail.agreement.toTenant} USDC to the tenant.`,
+    `\nFinal split: ${finalProposal?.toGuarantor ?? "?"} USDC to the guarantor, ${
+      finalProposal?.toLandlord ?? "?"
+    } USDC to the landlord.`,
   );
   console.log(
     detail.transactions.some((tx: { simulated: boolean }) => !tx.simulated)

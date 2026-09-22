@@ -1,19 +1,110 @@
 @import "tailwindcss";
 
-:root {
-  --background: #f6f7fb;
-  --foreground: #101828;
+/* Modern: dark, high contrast, aqua accent — the default experience. */
+:root,
+[data-theme="modern"] {
+  --bg: #080b14;
+  --surface: #101627;
+  --surface-muted: #161e33;
+  --fg: #eef2ff;
+  --muted: #94a3c4;
+  --line: #24304d;
+  --accent: #35e0c0;
+  --accent-fg: #06221c;
+  --neutral-bg: #1c2540;
+  --neutral-fg: #c7d2fe;
+  --ok-bg: #0f3b30;
+  --ok-fg: #6ee7b7;
+  --warn-bg: #3d2f0c;
+  --warn-fg: #fcd34d;
+  --info-bg: #10304d;
+  --info-fg: #7dd3fc;
+  --danger-bg: #431722;
+  --danger-fg: #fda4af;
+  --card-radius: 0.75rem;
+  --badge-radius: 9999px;
+  color-scheme: dark;
+  --ui-font: var(--font-geist-sans);
+}
+
+/* Retro: light, warm paper, monospace, hard edges. */
+[data-theme="retro"] {
+  --bg: #f4ead3;
+  --surface: #fffaf0;
+  --surface-muted: #efe2c6;
+  --fg: #2b2118;
+  --muted: #7a6a53;
+  --line: #2b2118;
+  --accent: #c2410c;
+  --accent-fg: #fffaf0;
+  --neutral-bg: #efe2c6;
+  --neutral-fg: #2b2118;
+  --ok-bg: #d8e8cf;
+  --ok-fg: #245c2e;
+  --warn-bg: #f6e3ae;
+  --warn-fg: #7c5a0b;
+  --info-bg: #d5e4f2;
+  --info-fg: #1d4e79;
+  --danger-bg: #f3d3ce;
+  --danger-fg: #8c2f22;
+  --card-radius: 0;
+  --badge-radius: 0;
+  color-scheme: light;
+  --ui-font: var(--font-geist-mono);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-neutral-bg: var(--neutral-bg);
+  --color-neutral-fg: var(--neutral-fg);
+  --color-ok-bg: var(--ok-bg);
+  --color-ok-fg: var(--ok-fg);
+  --color-warn-bg: var(--warn-bg);
+  --color-warn-fg: var(--warn-fg);
+  --color-info-bg: var(--info-bg);
+  --color-info-fg: var(--info-fg);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-fg: var(--danger-fg);
+  --radius-card: var(--card-radius);
+  --radius-badge: var(--badge-radius);
+  --font-sans: var(--ui-font);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--ui-font), system-ui, sans-serif;
+}
+
+[data-theme="retro"] body {
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(43, 33, 24, 0.05) 0px,
+    rgba(43, 33, 24, 0.05) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+}
+
+[data-theme="retro"] h1,
+[data-theme="retro"] h2 {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+[data-theme="modern"] input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
 }

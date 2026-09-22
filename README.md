@@ -1,24 +1,35 @@
-# Rental Guarantee on Stellar
+# Safexy — Rental Guarantee on Stellar
 
-A rental deposit is locked in a Soroban escrow and can only leave it when tenant
-and landlord agree on how to split it. The platform custodies nothing, decides
-nothing and never judges who is right: it records the agreement and executes it
-on Stellar.
+A rental guarantee is money a **guarantor** locks in a Soroban escrow in favor
+of a **landlord** — roles belong to the guarantee, not to the account, so the
+same user can be guarantor in one guarantee and landlord in another. The
+platform custodies nothing, decides nothing and never judges who is right: it
+records what both parties agree to and executes it on Stellar. The escrow
+supports repeated **partial** returns (the remainder stays locked), a
+**0.05% fee** on what is returned, and **extensions** that grow or shrink the
+locked amount.
 
 - Money: USDC on **Stellar testnet** (no custom token, no mainnet in the MVP).
-- Escrow: Soroban smart contract in `contracts/rental-guarantee`.
+- Escrow: Soroban smart contract in `contracts/safexy-guarantee`.
 - App: Next.js (App Router) + TypeScript + Tailwind, PostgreSQL/Neon via Drizzle.
+- Product model and full context: see [`/MD`](MD/README.md).
 
 ## Lifecycle
 
 ```
-create contract -> invite landlord -> accept -> fund guarantee (USDC locked)
--> request return -> propose / counter-propose -> accept -> release -> completed
+guarantor sends a guarantee by alias -> landlord accepts or rejects (reason)
+-> guarantor funds (USDC locked) -> guarantor requests a return (full or
+partial) / landlord returns unilaterally -> landlord approves, rejects
+(reason) or counters -> execute -> repeat while locked > 0 -> completed
 ```
+
+A guarantee pending acceptance for more than a month after its period starts
+is cancelled automatically. When the period ends it becomes `EXPIRED`, and the
+guarantor can return the balance or propose an extension.
 
 Off-chain statuses mirror the on-chain state machine: `DRAFT`,
 `PENDING_ACCEPTANCE`, `AWAITING_FUNDING`, `ACTIVE`, `RETURN_REQUESTED`,
-`NEGOTIATION`, `AGREED`, `RELEASED`, `COMPLETED`, `CANCELLED`.
+`NEGOTIATION`, `AGREED`, `COMPLETED`, `CANCELLED`, `REJECTED`, `EXPIRED`.
 
 ## Architecture
 
@@ -29,8 +40,20 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full picture and
 Next.js app (UI + route handlers)
   |- Drizzle ORM -> PostgreSQL (Neon in production)
   |- Freighter (user signs) / platform key (release only)
-  '- Soroban RPC -> rental-guarantee contract -> USDC SAC
+  '- Soroban RPC -> safexy-guarantee contract -> USDC SAC
 ```
+
+## Language and themes
+
+The interface ships in LATAM Spanish (default) and English. Dictionaries live in
+`src/lib/i18n/dictionaries.ts`; the choice is stored in the `rg_locale` cookie and
+read on the server, so pages render already translated.
+
+Two experiences replace the usual light/dark switch: `modern` (dark, default) and
+`retro` (light, monospace). The choice is stored in the `rg_theme` cookie and applied
+as `data-theme` on `<html>`; both palettes are defined as CSS variables in
+`src/app/globals.css` and exposed to Tailwind as semantic colors (`bg-surface`,
+`text-muted`, `border-line`, …).
 
 ## Local development
 
@@ -74,11 +97,23 @@ npx tsx scripts/demo-flow.ts
 | `PLATFORM_SECRET_KEY` | Account that submits the release transaction |
 | `DEMO_SIGNER_SECRETS` | Testnet-only throwaway keys for the scripted demo |
 | `NEXT_PUBLIC_DEMO_MODE` | Shows the demo banner in the UI |
+| `CRON_SECRET` | Authenticates the daily `/api/cron/expire` job (see below) |
 
 Demo mode: when `SOROBAN_CONTRACT_ID`, `STELLAR_USDC_CONTRACT_ID` or
 `PLATFORM_SECRET_KEY` are missing, every chain step is recorded as `simulated`
 and the UI labels it as such. Simulated activity is never presented as a real
 Stellar transaction.
+
+## Background expiry job
+
+`vercel.json` schedules Vercel Cron to call `GET /api/cron/expire` once a day.
+It sweeps every guarantee still `PENDING_ACCEPTANCE` past its one-month
+deadline (cancels it) or `ACTIVE` past its end date (marks it `EXPIRED`) —
+the same rule the app already applies lazily whenever someone opens a
+guarantee, just guaranteed to run even if nobody does. Requires `CRON_SECRET`
+to be set; without it the endpoint refuses every request. Outside Vercel, hit
+the same endpoint with `Authorization: Bearer $CRON_SECRET` from any
+scheduler (cron, GitHub Actions, etc.).
 
 ## Neon
 
@@ -102,8 +137,14 @@ step by step in [TESTNET.md](TESTNET.md).
 
 - Private keys are never stored in the database, the repo or the browser bundle.
   Users sign with Freighter; only the platform release key lives in server env.
-- No unilateral withdrawal: the contract only pays out an accepted distribution.
-- Distributions must add up exactly to the locked amount (7-decimal integer math).
-- Double release is blocked on-chain (state flips to `Released` before transfers)
-  and off-chain (status transitions are validated).
-- Personal data (names, emails, addresses) stays in Postgres, never on chain.
+- No unilateral withdrawal in the guarantor's favor: every payout to the
+  landlord requires a proposal the guarantor authorized, or is a return the
+  landlord grants in the guarantor's favor.
+- A settlement can never pay out more than the locked balance (checked
+  on-chain and off-chain); the remainder stays locked and the guarantee stays
+  active.
+- Double execution is blocked on-chain (`locked` is written down before any
+  transfer) and off-chain (status transitions are validated).
+- Personal data (names, emails, last names, photos) stays in Postgres, never
+  on chain; guarantees always reference the immutable `user_id`, never the
+  mutable alias.
