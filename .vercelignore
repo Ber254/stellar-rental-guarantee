@@ -1,0 +1,15 @@
+node_modules
+.next
+.vercel
+coverage
+out
+build
+contracts/target
+contracts/*/target
+.env*
+!.env.example
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
