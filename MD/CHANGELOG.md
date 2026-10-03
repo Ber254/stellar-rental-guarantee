@@ -284,3 +284,33 @@ español con los datos interpolados correctamente. `lint`, `typecheck`,
 **Pendiente real:** correr contra el contrato desplegado en testnet con
 cuentas fondeadas (sigue sin poder hacerse desde este entorno de
 desarrollo, que no tiene salida de red a Stellar ni a Postgres externo).
+
+## 2026-10-03 — Verificación end-to-end contra el contrato v2 en testnet
+
+Cerrado el último pendiente real del repo. Se levantó un entorno local completo
+(Postgres descartable en `127.0.0.1:5433`, migraciones `0000`–`0002`, servidor
+Next.js con `.env.local` apuntando a testnet y al contrato v2) y se corrió
+`scripts/demo-flow.ts` con las cuentas de testnet `guarantor`
+(`GDGZ7E2PJZ33M2X7EDDZ65KJCJWQP5QCZWDEBHSBRNHNQRYCGMHXJGBH`) y `landlord`
+(`GBYME6KARFMF4GX62SOH6WWJJXBOUKZNBJN3XOPOYQUOG3RGF4A3HX5A`).
+
+Resultado (`SFX-2026-000101`, on-chain id `2026000101`): registro por alias,
+aceptación del locador, fondeo de 1000 USDC, pedido de devolución total,
+contraoferta 700/300, contraoferta 850/150, aceptación y ejecución —
+**transacciones reales**, no simuladas.
+
+Verificación on-chain y de balances (previo → posterior):
+- `get_guarantee(2026000101)` → `funded = 1000`, `locked = 0`, `state = Closed`.
+- Garante: 1849,575 → **1699,15** USDC (−1000 fondeado + 849,575 devuelto).
+- Locador: 150 → **300** USDC (+150).
+- Tesorería: 0,575 → **1,00** USDC (+0,425 = 0,05 % de los 850 devueltos).
+
+El split 850/150 y la comisión de 0,05 % sobre lo devuelto al garante coinciden
+exactamente con lo esperado. Quedan confirmados `SOROBAN_CONTRACT_ID =
+CCAT2N5J...` y el SAC de USDC `CDSA3RLX...` como los del contrato v2.
+
+Nota operativa: `contract_counters` se inicializó en 100 para no colisionar con
+las garantías `1`/`2` que ya existían en testnet de la verificación previa.
+
+**Pendiente real:** ninguno en el flujo principal. Queda el paso a mainnet y la
+decisión de producto que implica — fuera del MVP, que es testnet por diseño.

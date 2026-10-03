@@ -17,6 +17,7 @@ cambiar una decisión funcional, actualizarlos y anotarlo en `CHANGELOG.md`.
 | `UX_UI.md` | Principios de interfaz, jerarquía, textos, temas e idiomas. |
 | `FAQ.md` | Preguntas frecuentes en lenguaje de usuario (fuente de la página FAQ). |
 | `ARCHITECTURE_CURRENT.md` | Análisis del sistema tal como está hoy y qué se reutiliza. |
+| `FUNDING.md` | Funding-readiness package: camino a Instaward/SCF, deck, roadmap y evidencia en testnet. |
 | `CHANGELOG.md` | Decisiones funcionales, con fecha. |
 
 Convenciones:

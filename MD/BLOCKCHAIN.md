@@ -92,8 +92,9 @@ acordada y ejecutada → 299,85 USDC al garante, 0,15 USDC a la tesorería y
    `propose_extension`/`accept_extension`/`cancel_extension` y `quote_fee`.
    Verificado end-to-end (creación, aceptación, fondeo, devoluciones
    parciales sucesivas, devolución unilateral, extensión con aumento y con
-   disminución) contra un Postgres real en modo simulado; falta correrlo una
-   vez contra el contrato desplegado en testnet con cuentas fondeadas.
+   disminución) contra un Postgres real en modo simulado. **Hecho también
+   contra el contrato desplegado en testnet** (2026-10-03, `SFX-2026-000101`:
+   split 850/150 y comisión de 0,05 % confirmados en balances reales).
 2. Actualizar `SOROBAN_CONTRACT_ID` en Vercel al contrato nuevo.
 3. `PLATFORM_SECRET_KEY` está vacía en producción, así que el pago final corre
    simulado hasta que se cargue una cuenta de testnet.
