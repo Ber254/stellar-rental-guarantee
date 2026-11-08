@@ -58,11 +58,28 @@ To let reviewers complete the entire on-chain lifecycle immediately—without ne
 
 *(Note: Reviewers who wish to test browser-wallet signing with their own account can install **Varial (formerly Freighter)** on Stellar Testnet, register a new user at `/register`, and sign the XDR payloads directly in the browser extension).*
 
+### Live Demo Screenshots (`https://rental-guarantee-stellar.vercel.app`)
+
+1. **Landing & How It Works (`/`)**
+   ![Home](screenshots/01-home.png)
+
+2. **Reviewer 1-Click Sign-In (`/login`)**
+   ![Reviewer Login](screenshots/02-login-reviewer.png)
+
+3. **Guarantor Dashboard with Live Testnet Guarantee (`/dashboard`)**
+   ![Dashboard](screenshots/03-dashboard-guarantor.png)
+
+4. **New Guarantee by Alias (`/contracts/new`)**
+   ![New Guarantee](screenshots/05-new-guarantee.png)
+
+5. **Active Guarantee Detail (`SFX-2026-000201` — 200 USDC funded, 50 USDC partial return executed, 150 USDC remaining locked, real `stellar.expert` tx links)**
+   ![Contract Detail](screenshots/04-contract-detail-onchain.png)
+
 ---
 
 ## 3. Consolidated On-Chain Evidence (Deliverables 1 & 3 / Weeks 1, 2 & 4)
 
-All 24 transactions below were executed as real signed transactions on Stellar Testnet against contract [`CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV`](https://stellar.expert/explorer/testnet/contract/CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV).
+All 29 transactions below were executed as real signed transactions on Stellar Testnet against contract [`CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV`](https://stellar.expert/explorer/testnet/contract/CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV).
 
 ---
 
@@ -148,6 +165,23 @@ All 24 transactions below were executed as real signed transactions on Stellar T
   - Guarantor: `1248.875` → **`1248.425` USDC** (`-600` initial fund + `199.90` unilateral #1 `- 300` top-up + `199.90` decrease refund + `499.75` closing return = `-0.45 USDC` total fee on `900 USDC` returned)
   - Landlord: `350.00` → **`350.00` USDC**
   - Treasury: `1.275` → **`1.725` USDC** (`+0.10` + `+0.10` + `+0.25` = `+0.45 USDC` = `0.05%` fee on `900 USDC` returned to guarantor)
+
+---
+
+### Run 4 (Week 3 Live Production Demo) — Pre-Loaded Guarantee on Vercel (`SFX-2026-000201` / On-Chain ID `2026000201`)
+
+- **Scenario:** Created directly on `https://rental-guarantee-stellar.vercel.app` between `@alice.guarantor` and `@bob.landlord` (`Depto Palermo 4B`, `200 USDC` funded, `50 USDC` partial return executed, leaving **`150 USDC` locked** and `ACTIVE` in the live UI for reviewers to inspect and continue interacting with).
+
+| # | Step | Soroban Invocation | Transaction Hash | Explorer Link |
+| --- | --- | --- | --- | --- |
+| 1 | Create | `create_guarantee(2026000201, 200 USDC)` | `fd4d31e9890bdeab92142515e4c796e08b93df96e582d5522d3af360f2cb0972` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/fd4d31e9890bdeab92142515e4c796e08b93df96e582d5522d3af360f2cb0972) |
+| 2 | Fund | `fund_guarantee(2026000201)` | `68fa9b3301bef7a4bb3aa5fc7aebe85afb49706649759e7c9b84346fd0c0b5d6` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/68fa9b3301bef7a4bb3aa5fc7aebe85afb49706649759e7c9b84346fd0c0b5d6) |
+| 3 | Partial #1 — Propose | `propose_settlement(50 / 0)` | `84d2a4ec296ce92fa3bee2f268764cc020839c681ce8ecf9328ab0a65a0e49d3` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/84d2a4ec296ce92fa3bee2f268764cc020839c681ce8ecf9328ab0a65a0e49d3) |
+| 4 | Partial #1 — Accept | `accept_settlement(2026000201)` | `7dd668ee601cfcb0ee25861a180fda20944172a2de2003498b25e99707d24786` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/7dd668ee601cfcb0ee25861a180fda20944172a2de2003498b25e99707d24786) |
+| 5 | Partial #1 — Execute | `execute_settlement(2026000201)` | `82344efa3df6f588b770e6f3055497e4e50936d7fb27a079830e1989a83ecfc6` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/82344efa3df6f588b770e6f3055497e4e50936d7fb27a079830e1989a83ecfc6) |
+
+- **Live UI Link (after 1-click sign-in at `/login`):** `https://rental-guarantee-stellar.vercel.app/contracts/a0eeab82-07d4-4031-9d56-0f44e4533854`
+- **Verified On-Chain State (`get_guarantee(2026000201)`):** `funded = 200 USDC`, **`locked = 150 USDC`**, `state = Active`.
 
 ---
 
