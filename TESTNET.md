@@ -95,6 +95,17 @@ npm run dev
 npx tsx scripts/partial-returns-flow.ts
 ```
 
+To run the **Week 2 unilateral return and extensions (increase & decrease)** flow:
+
+```bash
+npm run dev
+npx tsx scripts/unilateral-and-extensions-flow.ts
+```
+
+For the consolidated verification report (all 24 transaction hashes, `stellar.expert`
+links, and the UI reviewer walkthrough for `https://rental-guarantee-stellar.vercel.app`),
+see [`MD/VERIFICATION.md`](MD/VERIFICATION.md).
+
 Verify the balances:
 
 ```bash

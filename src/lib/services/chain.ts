@@ -262,6 +262,9 @@ function planStep(ctx: Context, step: ChainStep, payload: StepPayload): () => Co
         throw badRequest("The guarantee is not active", "notActive");
       }
       const ext = extensionPayloadSchema.parse(payload.extension);
+      if (toStroops(ext.newAmount) <= 0n) {
+        throw badRequest("The new amount must be greater than zero", "invalidInput");
+      }
       return () =>
         calls.proposeExtension({
           id: onChainId,
@@ -531,6 +534,14 @@ async function applyStep(
       const newAmountStroops = toStroops(ext.newAmount);
       const lockedStroops = toStroops(lockedOf(guarantee));
       const topUp = newAmountStroops > lockedStroops ? newAmountStroops - lockedStroops : 0n;
+
+      const existing = await pendingExtension(contract.id);
+      if (existing) {
+        await db
+          .update(extensions)
+          .set({ status: "CANCELLED", resolvedAt: now })
+          .where(eq(extensions.id, existing.id));
+      }
 
       await db.insert(extensions).values({
         contractId: contract.id,

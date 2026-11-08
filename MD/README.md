@@ -18,6 +18,7 @@ cambiar una decisión funcional, actualizarlos y anotarlo en `CHANGELOG.md`.
 | `FAQ.md` | Preguntas frecuentes en lenguaje de usuario (fuente de la página FAQ). |
 | `ARCHITECTURE_CURRENT.md` | Análisis del sistema tal como está hoy y qué se reutiliza. |
 | `FUNDING.md` | Funding-readiness package: camino a Instaward/SCF, deck, roadmap y evidencia en testnet. |
+| `VERIFICATION.md` | Reporte consolidado de evidencia on-chain (24 tx con links a stellar.expert) y walkthrough de la demo pública (Semanas 1–4 Instaward). |
 | `CHANGELOG.md` | Decisiones funcionales, con fecha. |
 
 Convenciones:

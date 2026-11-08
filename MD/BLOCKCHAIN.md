@@ -102,9 +102,17 @@ acordada y ejecutada → 299,85 USDC al garante, 0,15 USDC a la tesorería y
       1.ª devolución parcial negociada 250/50 (300 USDC liberados, `locked = 700`
       USDC, `state = Active`) seguida de 2.ª devolución parcial 300/0 (300 USDC
       liberados, **`locked = 400` USDC**, `funded = 1000` USDC, `state = Active`).
-2. Actualizar `SOROBAN_CONTRACT_ID` en Vercel al contrato nuevo.
-3. `PLATFORM_SECRET_KEY` está vacía en producción, así que el pago final corre
-   simulado hasta que se cargue una cuenta de testnet.
+    - 2026-11-08 — Semana 2 Instaward (`SFX-2026-000103`, on-chain `2026000103`):
+      **devolución unilateral del locador** (parcial de 200 USDC → `locked = 400`
+      USDC), **extensión con aumento** (`400 → 700` USDC, top-up de +300 USDC,
+      `funded = 900` USDC), **extensión con reducción** (`700 → 500` USDC,
+      reembolso de 200 USDC menos comisión de 0,05 %) y **devolución unilateral
+      de cierre** (`500` USDC → `locked = 0` USDC, `state = Closed`). Ver
+      reporte consolidado en `MD/VERIFICATION.md`.
+2. ~~Actualizar `SOROBAN_CONTRACT_ID` en Vercel al contrato nuevo.~~ Hecho en
+   `https://rental-guarantee-stellar.vercel.app`.
+3. ~~`PLATFORM_SECRET_KEY` está vacía en producción.~~ Cargada y verificada en
+   producción (Vercel).
 
 ## Regla
 

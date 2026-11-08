@@ -364,3 +364,41 @@ Verificación de estado on-chain y balances (antes → después de Parcial #1 �
 - Garante (`GDGZ7E…JGBH`): 1699,15 → **1248,875** USDC (−1000 fondeado + 249,875 neto en Parcial #1 + 299,85 neto en Parcial #2).
 - Locador (`GBYME6…HX5A`): 300,00 → **350,00** USDC (+50 en Parcial #1 + 0 en Parcial #2).
 - Tesorería (`GCBM7P…UZUB`): 1,00 → **1,275** USDC (+0,125 en Parcial #1 + 0,15 en Parcial #2 = 0,05 % de 550 USDC devueltos al garante).
+
+## 2026-11-08 — Semanas 2, 3 y 4 Instaward: devolución unilateral, extensiones, demo pública y reporte consolidado
+
+Cerrados los entregables restantes del SOW de 30 días:
+
+### Semana 2 — Devolución unilateral del locador y extensiones (aumento y reducción) on-chain
+
+Ejecutado `scripts/unilateral-and-extensions-flow.ts` contra el contrato v2 en
+Stellar testnet (`SFX-2026-000103`, on-chain id `2026000103`) con firma de XDR en
+2 pasos:
+
+| Paso | Operación Soroban | Tx hash | Explorer |
+| --- | --- | --- | --- |
+| 1. Registro | `create_guarantee(2026000103, 600 USDC)` | `a59454541b03f4db9dab105c25cddbb511824b312310bad4a61d9b5f44640aa4` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/a59454541b03f4db9dab105c25cddbb511824b312310bad4a61d9b5f44640aa4) |
+| 2. Fondeo | `fund_guarantee(2026000103)` | `3534565a9f3ffc75fb78c6e1de444f35136b4e6b0982fe1971d2b9a3ca0aadad` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/3534565a9f3ffc75fb78c6e1de444f35136b4e6b0982fe1971d2b9a3ca0aadad) |
+| 3. Devolución unilateral #1 (parcial) | `return_to_guarantor(2026000103, 200 USDC)` | `ba2bd381ec8568a17a430d2429d30a8a2300f6b1f90b1260d67a242573b61076` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/ba2bd381ec8568a17a430d2429d30a8a2300f6b1f90b1260d67a242573b61076) |
+| 4. Extensión aumento — propuesta (+300 top-up) | `propose_extension(2026000103, 2027-06-30, 700 USDC)` | `f6e2dad170ce58576e4a60d5c62b5ad008112c1a357c1740f04c0091d8269318` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/f6e2dad170ce58576e4a60d5c62b5ad008112c1a357c1740f04c0091d8269318) |
+| 5. Extensión aumento — aceptación | `accept_extension(2026000103)` | `92b8a4a591e8ab30baaa2817fa41e8fc75027f45b7ae9d69acd396f4d6197ef1` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/92b8a4a591e8ab30baaa2817fa41e8fc75027f45b7ae9d69acd396f4d6197ef1) |
+| 6. Extensión reducción — propuesta (−200 reembolso) | `propose_extension(2026000103, 2027-12-31, 500 USDC)` | `629a903d3057c24e9d9632efc4bc4bbf0d95e4dbe701b45a87b11c5fc8d4e863` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/629a903d3057c24e9d9632efc4bc4bbf0d95e4dbe701b45a87b11c5fc8d4e863) |
+| 7. Extensión reducción — aceptación | `accept_extension(2026000103)` | `24ba11152cb342ef7b4ed678dc480046ed8f1da8d5999d5f1d0891d70cee397c` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/24ba11152cb342ef7b4ed678dc480046ed8f1da8d5999d5f1d0891d70cee397c) |
+| 8. Devolución unilateral #2 (cierre) | `return_to_guarantor(2026000103, 500 USDC)` | `94e0e9768870c7f53650bb25bda0941db86fab40ccf9d1b4c7b1cfc222c3f5f6` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/94e0e9768870c7f53650bb25bda0941db86fab40ccf9d1b4c7b1cfc222c3f5f6) |
+
+Estado on-chain verificado tras cada mecánica (`get_guarantee(2026000103)`):
+- Tras `fund`: `funded = 600` USDC, `locked = 600` USDC, `state = Active`.
+- Tras devolución unilateral #1 (`200` USDC): `funded = 600` USDC, **`locked = 400` USDC**, `state = Active`.
+- Tras extensión con aumento (`400 → 700` USDC): **`funded = 900` USDC**, **`locked = 700` USDC**, `endDate = 2027-06-30`, `state = Active`.
+- Tras extensión con reducción (`700 → 500` USDC): **`funded = 900` USDC**, **`locked = 500` USDC**, `endDate = 2027-12-31`, `state = Active`.
+- Tras devolución unilateral de cierre (`500` USDC): **`funded = 900` USDC**, **`locked = 0` USDC**, **`state = Closed`**.
+- Balances en Horizon: garante `1248,875` → **`1248,425` USDC**; locador `350,00` → **`350,00` USDC**; tesorería `1,275` → **`1,725` USDC** (`+0,45` USDC = 0,05 % sobre los 900 USDC devueltos al garante).
+
+### Semana 3 — Deploy público en Vercel y acceso rápido para evaluadores
+
+- `scripts/migrate.ts` inicializa `contract_counters >= 200` (evitando colisiones con garantías previas en testnet) y asegura las cuentas de prueba `@alice.guarantor` (`alice@example.com`) y `@bob.landlord` (`bob@example.com`, contraseña `demo1234`) vinculadas a las wallets fondeadas de testnet.
+- Se agregaron botones de acceso en 1 clic para evaluadores en `/login` (`src/components/auth-form.tsx`) y el walkthrough paso a paso en `MD/VERIFICATION.md` y `TESTNET.md`.
+
+### Semana 4 — Reporte consolidado de verificación
+
+- Creado `MD/VERIFICATION.md` con las 24 transacciones reales firmadas de las tres corridas end-to-end (`2026000101`, `2026000102`, `2026000103`), links directos a `stellar.expert`, estados on-chain, balances de Horizon, logs de ejecución y guía para evaluadores.

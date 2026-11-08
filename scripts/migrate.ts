@@ -1,3 +1,4 @@
+import { hash } from "bcryptjs";
 import { config } from "dotenv";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
@@ -90,6 +91,29 @@ async function main() {
   }
 
   await migrate(drizzle(pool), { migrationsFolder: "./drizzle" });
+  // Ensure the reference counter starts above historical testnet IDs (1..103)
+  // so fresh or deployed databases never collide with existing on-chain guarantees.
+  await pool.query(
+    `insert into contract_counters (year, last_number)
+     values ($1, 200)
+     on conflict (year) do update
+     set last_number = greatest(contract_counters.last_number, 200)`,
+    [new Date().getFullYear()],
+  );
+
+  // Ensure the documented testnet reviewer accounts (@alice.guarantor and
+  // @bob.landlord) exist and point at the funded testnet wallets.
+  const demoPasswordHash = await hash("demo1234", 10);
+  await pool.query(
+    `insert into users (email, name, last_name, alias, password_hash, stellar_address)
+     values
+       ('alice@example.com', 'Alice', 'Guarantor', 'alice.guarantor', $1, 'GDGZ7E2PJZ33M2X7EDDZ65KJCJWQP5QCZWDEBHSBRNHNQRYCGMHXJGBH'),
+       ('bob@example.com', 'Bob', 'Landlord', 'bob.landlord', $1, 'GBYME6KARFMF4GX62SOH6WWJJXBOUKZNBJN3XOPOYQUOG3RGF4A3HX5A')
+     on conflict (email) do update
+     set alias = excluded.alias,
+         stellar_address = excluded.stellar_address`,
+    [demoPasswordHash],
+  );
   console.log("Migrations applied");
   await pool.end();
 }

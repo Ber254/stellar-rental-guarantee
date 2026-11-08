@@ -117,6 +117,10 @@ export const es = {
     noAccount: "¿Todavía no tenés cuenta?",
     createOne: "Creá una",
     genericError: "Algo salió mal",
+    reviewerTitle: "Acceso rápido para evaluadores (Testnet)",
+    reviewerHint: "Cuentas preconfiguradas con wallets fondeadas en Stellar Testnet (contraseña: demo1234).",
+    reviewerGuarantor: "Entrar como Garante (@alice.guarantor)",
+    reviewerLandlord: "Entrar como Locador (@bob.landlord)",
   },
   profile: {
     title: "Tu perfil",
@@ -499,6 +503,10 @@ export const en: Dictionary = {
     noAccount: "No account yet?",
     createOne: "Create one",
     genericError: "Something went wrong",
+    reviewerTitle: "Reviewer quick access (Testnet)",
+    reviewerHint: "Pre-configured accounts with funded Stellar Testnet wallets (password: demo1234).",
+    reviewerGuarantor: "Sign in as Guarantor (@alice.guarantor)",
+    reviewerLandlord: "Sign in as Landlord (@bob.landlord)",
   },
   profile: {
     title: "Your profile",

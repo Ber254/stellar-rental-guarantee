@@ -61,6 +61,25 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     router.refresh();
   }
 
+  async function quickLogin(email: string, password: string) {
+    setError(null);
+    setPending(true);
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    setPending(false);
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      setError(apiErrorMessage(t, body, t.auth.genericError));
+      return;
+    }
+    router.replace("/dashboard");
+    router.refresh();
+  }
+
   return (
     <div className="mx-auto max-w-md">
       <Card
@@ -151,6 +170,31 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             </>
           )}
         </p>
+
+        {!isRegister && (
+          <div className="mt-5 space-y-2 border-t border-line pt-4">
+            <p className="text-xs font-medium text-fg">{t.auth.reviewerTitle}</p>
+            <p className="text-xs text-muted">{t.auth.reviewerHint}</p>
+            <div className="flex flex-col gap-2 pt-1">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={pending}
+                onClick={() => quickLogin("alice@example.com", "demo1234")}
+              >
+                {t.auth.reviewerGuarantor}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={pending}
+                onClick={() => quickLogin("bob@example.com", "demo1234")}
+              >
+                {t.auth.reviewerLandlord}
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );
