@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getDictionary } from "@/lib/i18n";
 import { getLocale } from "@/lib/i18n/server";
 import { Card } from "@/components/ui";
+import { YieldCalculator } from "@/components/yield-calculator";
 
 export default async function Home() {
   if (await getCurrentUser()) redirect("/dashboard");
@@ -134,6 +135,8 @@ export default async function Home() {
           ))}
         </ol>
       </Card>
+
+      <YieldCalculator locale={locale} />
     </div>
   );
 }

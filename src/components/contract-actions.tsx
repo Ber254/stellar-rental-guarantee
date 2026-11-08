@@ -3,10 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { feeForStroops } from "@/lib/business-rules";
 import type { ContractStatus, PartyRole } from "@/lib/db/schema";
 import { apiErrorMessage, interpolate } from "@/lib/i18n";
-import { formatUsdc } from "@/lib/money";
+import { formatUsdc, fromStroops, toStroops } from "@/lib/money";
 import type { ChainStep } from "@/lib/services/chain";
+import { sha256HexOfFile } from "./evidence-verifier";
 import { useI18n } from "./i18n-provider";
 import { Alert, Button, Card, Field, Input } from "./ui";
 import { ConnectWalletButton, useWallet } from "./wallet";
@@ -54,12 +56,16 @@ export function ContractActions({
 }) {
   const router = useRouter();
   const { sign } = useWallet();
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
+  const isEs = locale === "es";
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toGuarantor, setToGuarantor] = useState("");
   const [toLandlord, setToLandlord] = useState("");
   const [returnAmount, setReturnAmount] = useState("");
+  const [proposalNote, setProposalNote] = useState("");
+  const [evidenceTag, setEvidenceTag] = useState("");
+  const [evidenceLabel, setEvidenceLabel] = useState("");
   const [unilateralAmount, setUnilateralAmount] = useState("");
   const [rejectReason, setRejectReason] = useState("");
   const [settlementRejectReason, setSettlementRejectReason] = useState("");
@@ -97,6 +103,9 @@ export function ContractActions({
       setToLandlord("");
       setUnilateralAmount("");
       setSettlementRejectReason("");
+      setProposalNote("");
+      setEvidenceTag("");
+      setEvidenceLabel("");
       router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t.actions.failed);
@@ -154,6 +163,38 @@ export function ContractActions({
     }
     setEditing(false);
     router.refresh();
+  }
+
+  async function onAttachEvidence(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setEvidenceTag("");
+      setEvidenceLabel("");
+      return;
+    }
+    const hex = await sha256HexOfFile(file);
+    const cleanName = file.name.replace(/[\[\]]/g, "").slice(0, 40);
+    setEvidenceTag(`[SHA-256: ${hex} · ${cleanName}]`);
+    setEvidenceLabel(`${cleanName} (${hex.slice(0, 10)}…)`);
+  }
+
+  function combinedReason(baseNote: string) {
+    return [baseNote.trim(), evidenceTag].filter(Boolean).join(" ");
+  }
+
+  function previewFeeLine(amountStr: string) {
+    try {
+      const stroops = toStroops(amountStr);
+      if (stroops <= 0n) return null;
+      const fee = feeForStroops(stroops);
+      const net = stroops - fee;
+      return interpolate(t.actions.feePreview, {
+        fee: fromStroops(fee),
+        net: fromStroops(net),
+      });
+    } catch {
+      return null;
+    }
   }
 
   const total = Number(locked);
@@ -323,11 +364,54 @@ export function ContractActions({
                     placeholder={String(Number(locked))}
                   />
                 </Field>
+                {returnAmount && previewFeeLine(returnAmount) && (
+                  <p className="font-mono text-[11px] text-accent">
+                    {previewFeeLine(returnAmount)}
+                  </p>
+                )}
+                <Field
+                  label={
+                    isEs
+                      ? "Nota o comprobante (opcional)"
+                      : "Note or receipt (optional)"
+                  }
+                >
+                  <Input
+                    value={proposalNote}
+                    onChange={(event) => setProposalNote(event.target.value)}
+                    placeholder={
+                      isEs
+                        ? "Ej. Fin de contrato / Entrega de llaves"
+                        : "e.g. End of lease / Keys handed over"
+                    }
+                  />
+                </Field>
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <label className="cursor-pointer rounded border border-line bg-surface px-2.5 py-1 font-medium text-muted transition hover:border-accent hover:text-fg">
+                    {isEs
+                      ? "📎 Adjuntar huella SHA-256 de comprobante"
+                      : "📎 Attach receipt SHA-256 fingerprint"}
+                    <input
+                      type="file"
+                      className="hidden"
+                      onChange={(e) => void onAttachEvidence(e)}
+                    />
+                  </label>
+                  {evidenceLabel && (
+                    <span className="font-mono text-[11px] text-accent">
+                      ✓ {evidenceLabel}
+                    </span>
+                  )}
+                </div>
                 <Button
                   disabled={busy !== null || !returnAmount}
                   onClick={() =>
                     run("propose", {
-                      propose: { toGuarantor: returnAmount, toLandlord: "0" },
+                      propose: {
+                        toGuarantor: returnAmount,
+                        toLandlord: "0",
+                        reason: combinedReason(proposalNote),
+                      },
                     })
                   }
                 >
@@ -482,11 +566,54 @@ export function ContractActions({
                   />
                 </Field>
               </div>
+              {shareValid && guarantorShare !== null && previewFeeLine(String(guarantorShare)) && (
+                <p className="font-mono text-[11px] text-accent">
+                  {previewFeeLine(String(guarantorShare))}
+                </p>
+              )}
+              <Field
+                label={
+                  isEs
+                    ? "Motivo / detalle de la contraoferta (opcional)"
+                    : "Counter-offer reason / detail (optional)"
+                }
+              >
+                <Input
+                  value={proposalNote}
+                  onChange={(event) => setProposalNote(event.target.value)}
+                  placeholder={
+                    isEs
+                      ? "Ej. Descuento por pintura / factura adjunta"
+                      : "e.g. Deduction for painting / invoice attached"
+                  }
+                />
+              </Field>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <label className="cursor-pointer rounded border border-line bg-surface px-2.5 py-1 font-medium text-muted transition hover:border-accent hover:text-fg">
+                  {isEs
+                    ? "📎 Adjuntar huella SHA-256 de comprobante"
+                    : "📎 Attach receipt SHA-256 fingerprint"}
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => void onAttachEvidence(e)}
+                  />
+                </label>
+                {evidenceLabel && (
+                  <span className="font-mono text-[11px] text-accent">
+                    ✓ {evidenceLabel}
+                  </span>
+                )}
+              </div>
               <Button
                 disabled={busy !== null || !shareValid}
                 onClick={() =>
                   run("propose", {
-                    propose: { toGuarantor: String(guarantorShare), toLandlord: String(landlordShare) },
+                    propose: {
+                      toGuarantor: String(guarantorShare),
+                      toLandlord: String(landlordShare),
+                      reason: combinedReason(proposalNote),
+                    },
                   })
                 }
               >

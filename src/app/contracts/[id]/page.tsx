@@ -1,7 +1,10 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { ContractActions } from "@/components/contract-actions";
+import { EvidenceVerifier } from "@/components/evidence-verifier";
 import { HowItWorks } from "@/components/how-it-works";
+import { OnChainInspector } from "@/components/onchain-inspector";
 import { Alert, Card, Row, StatusBadge } from "@/components/ui";
 import { WalletProvider } from "@/components/wallet";
 import { getCurrentUser } from "@/lib/auth";
@@ -121,7 +124,16 @@ export default async function ContractPage({
               {property?.address ? ` · ${property.address}` : ""}
             </p>
           </div>
-          <StatusBadge status={contract.status} label={t.status[contract.status]} />
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Link
+              href={`/contracts/${contract.id}/certificate`}
+              className="inline-flex items-center gap-1.5 rounded-card border border-line bg-surface-muted px-3 py-1.5 text-xs font-semibold text-fg transition hover:border-accent"
+            >
+              <span>📄</span>
+              {isEs ? "Certificado QR / PDF" : "QR / PDF Certificate"}
+            </Link>
+            <StatusBadge status={contract.status} label={t.status[contract.status]} />
+          </div>
         </div>
 
         {currentStep > 0 && (
@@ -302,7 +314,7 @@ export default async function ContractPage({
                       })}
                     </p>
                     {proposal.reason && (
-                      <p className="text-xs text-muted">“{proposal.reason}”</p>
+                      <EvidenceVerifier reason={proposal.reason} locale={locale} />
                     )}
                   </div>
                   <span className="rounded-badge border border-line bg-surface px-2.5 py-0.5 text-xs font-semibold text-muted">
@@ -314,6 +326,8 @@ export default async function ContractPage({
           </ol>
         </Card>
       )}
+
+      <OnChainInspector contractId={contract.id} locale={locale} />
 
       <Card title={t.contract.activityTitle}>
         {detail.transactions.length === 0 ? (

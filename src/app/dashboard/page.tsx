@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { AgencyToolkit } from "@/components/agency-toolkit";
 import { HowItWorks } from "@/components/how-it-works";
 import { Card, StatusBadge } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
@@ -146,6 +147,31 @@ export default async function DashboardPage() {
           <p className="mt-2 font-mono text-2xl font-bold text-fg">{received.length}</p>
         </div>
       </div>
+
+      <AgencyToolkit
+        userAlias={user.alias ?? user.name}
+        locale={locale}
+        rows={rows.map(({ contract, property, guarantee }) => ({
+          reference: contract.reference,
+          role:
+            contract.guarantorId === user.id
+              ? t.dashboard.roleGuarantor
+              : t.dashboard.roleLandlord,
+          property: property?.label ?? contract.reference,
+          guaranteeAmount: String(Number(contract.guaranteeAmount)),
+          lockedAmount: String(
+            Number(
+              guarantee?.lockedAmount ??
+                guarantee?.amount ??
+                contract.guaranteeAmount,
+            ),
+          ),
+          status: contract.status,
+          startDate: formatDate(contract.startDate),
+          endDate: formatDate(contract.endDate),
+          onChainId: guarantee?.onChainId ?? "",
+        }))}
+      />
 
       <HowItWorks label={t.dashboard.howItWorks} body={t.dashboard.howItWorksBody} />
 

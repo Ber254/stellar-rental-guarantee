@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { apiErrorMessage } from "@/lib/i18n";
 
@@ -16,21 +16,39 @@ type LandlordPreview = {
   lastName: string | null;
 };
 
-export function NewContractForm({ defaultWallet }: { defaultWallet: string }) {
+type Prefill = {
+  landlordAlias?: string;
+  guaranteeAmount?: string;
+  rentAmount?: string;
+  propertyLabel?: string;
+  propertyAddress?: string;
+};
+
+export function NewContractForm({
+  defaultWallet,
+  prefill,
+}: {
+  defaultWallet: string;
+  prefill?: Prefill;
+}) {
   const router = useRouter();
   const { address } = useWallet();
   const { t } = useI18n();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [landlordAlias, setLandlordAlias] = useState("");
+  const [landlordAlias, setLandlordAlias] = useState(
+    prefill?.landlordAlias?.toLowerCase() ?? "",
+  );
   const [landlord, setLandlord] = useState<LandlordPreview | null>(null);
   const [verifying, setVerifying] = useState(false);
 
-  async function verify() {
+  async function verify(aliasToCheck = landlordAlias) {
     setVerifying(true);
     setError(null);
     setLandlord(null);
-    const response = await fetch(`/api/users/lookup?alias=${encodeURIComponent(landlordAlias)}`);
+    const response = await fetch(
+      `/api/users/lookup?alias=${encodeURIComponent(aliasToCheck)}`,
+    );
     const body = await response.json().catch(() => ({}));
     setVerifying(false);
     if (!response.ok) {
@@ -39,6 +57,24 @@ export function NewContractForm({ defaultWallet }: { defaultWallet: string }) {
     }
     setLandlord(body.user);
   }
+
+  useEffect(() => {
+    const initial = prefill?.landlordAlias?.trim().toLowerCase();
+    if (!initial || initial.length < 3) return;
+    let cancelled = false;
+    (async () => {
+      const response = await fetch(
+        `/api/users/lookup?alias=${encodeURIComponent(initial)}`,
+      );
+      const body = await response.json().catch(() => ({}));
+      if (!cancelled && response.ok) {
+        setLandlord(body.user);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [prefill?.landlordAlias]);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -104,12 +140,14 @@ export function NewContractForm({ defaultWallet }: { defaultWallet: string }) {
         <Field label={t.newContract.propertyLabel}>
           <Input
             name="propertyLabel"
+            defaultValue={prefill?.propertyLabel ?? ""}
             placeholder={t.newContract.propertyLabelPlaceholder}
           />
         </Field>
         <Field label={t.newContract.propertyAddress}>
           <Input
             name="propertyAddress"
+            defaultValue={prefill?.propertyAddress ?? ""}
             placeholder={t.newContract.propertyAddressPlaceholder}
           />
         </Field>
@@ -123,10 +161,21 @@ export function NewContractForm({ defaultWallet }: { defaultWallet: string }) {
           />
         </Field>
         <Field label={t.newContract.guaranteeAmount}>
-          <Input name="guaranteeAmount" required inputMode="decimal" placeholder="1000" />
+          <Input
+            name="guaranteeAmount"
+            required
+            inputMode="decimal"
+            defaultValue={prefill?.guaranteeAmount ?? ""}
+            placeholder="1000"
+          />
         </Field>
         <Field label={t.newContract.rentAmount}>
-          <Input name="rentAmount" inputMode="decimal" placeholder="850" />
+          <Input
+            name="rentAmount"
+            inputMode="decimal"
+            defaultValue={prefill?.rentAmount ?? ""}
+            placeholder="850"
+          />
         </Field>
         <Field label={t.newContract.startDate}>
           <Input name="startDate" type="date" required />
