@@ -81,7 +81,19 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   }
 
   return (
-    <div className="mx-auto max-w-md">
+    <div className="mx-auto max-w-md space-y-6">
+      <div className="flex flex-col items-center text-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/safexy-icon.png"
+          alt="Safexy"
+          className="h-14 w-auto drop-shadow-[0_4px_14px_rgba(56,152,255,0.4)]"
+        />
+        <p className="mt-2 text-2xl font-extrabold lowercase tracking-tight text-fg">
+          safexy
+        </p>
+        <p className="text-xs font-medium text-muted">Tu garantía, sin vueltas.</p>
+      </div>
       <Card
         title={isRegister ? t.auth.createTitle : t.auth.signInTitle}
         description={

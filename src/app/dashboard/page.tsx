@@ -117,7 +117,7 @@ export default async function DashboardPage() {
         </div>
         <Link
           href="/contracts/new"
-          className="inline-flex items-center gap-2 rounded-card bg-accent px-4 py-2.5 text-sm font-semibold text-accent-fg shadow-md shadow-accent/20 transition hover:brightness-110"
+          className="inline-flex items-center gap-2 rounded-card bg-gradient-to-r from-[#12A8FF] via-[#3B68FF] to-[#6D28D9] px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-[#3B68FF]/25 transition hover:brightness-110"
         >
           <span>+</span>
           {t.dashboard.newGuarantee}

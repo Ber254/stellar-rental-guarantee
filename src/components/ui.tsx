@@ -100,7 +100,7 @@ export function Button({
 }: ComponentProps<"button"> & { variant?: "primary" | "secondary" | "danger" }) {
   const tones = {
     primary:
-      "bg-accent text-accent-fg font-semibold shadow-sm shadow-accent/20 hover:brightness-110 active:scale-[0.99]",
+      "bg-gradient-to-r from-[#12A8FF] via-[#3B68FF] to-[#6D28D9] text-white font-semibold shadow-md shadow-[#3B68FF]/25 hover:brightness-110 active:scale-[0.99]",
     secondary:
       "border border-line bg-surface-muted/80 text-fg hover:border-accent/70 hover:bg-surface-muted",
     danger:

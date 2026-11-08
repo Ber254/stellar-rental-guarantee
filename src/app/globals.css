@@ -1,23 +1,23 @@
 @import "tailwindcss";
 
-/* Modern: dark, high contrast, aqua accent — the default experience. */
+/* Modern: Safexy brand palette — deep midnight navy with electric blue to indigo-violet accents. */
 :root,
 [data-theme="modern"] {
-  --bg: #060913;
-  --surface: #0d1324;
-  --surface-muted: #131c33;
-  --fg: #f1f5f9;
+  --bg: #070b16;
+  --surface: #0d1428;
+  --surface-muted: #141f3a;
+  --fg: #f8fafc;
   --muted: #94a3b8;
-  --line: #1e2d4a;
-  --accent: #2dd4bf;
-  --accent-fg: #042f2e;
-  --neutral-bg: #17213a;
+  --line: #213159;
+  --accent: #3898ff;
+  --accent-fg: #ffffff;
+  --neutral-bg: #172340;
   --neutral-fg: #cbd5e1;
-  --ok-bg: #0b362c;
+  --ok-bg: #0c352e;
   --ok-fg: #6ee7b7;
   --warn-bg: #3b2a0a;
   --warn-fg: #fcd34d;
-  --info-bg: #0d2d4a;
+  --info-bg: #112a52;
   --info-fg: #7dd3fc;
   --danger-bg: #3f1420;
   --danger-fg: #fda4af;
@@ -87,8 +87,8 @@ body {
 :root body,
 [data-theme="modern"] body {
   background-image:
-    radial-gradient(ellipse 80% 50% at 50% -15%, rgba(45, 212, 191, 0.14), transparent),
-    radial-gradient(ellipse 50% 40% at 90% 10%, rgba(56, 189, 248, 0.08), transparent);
+    radial-gradient(ellipse 80% 50% at 50% -15%, rgba(18, 168, 255, 0.18), transparent),
+    radial-gradient(ellipse 55% 45% at 88% 12%, rgba(109, 40, 217, 0.16), transparent);
   background-attachment: fixed;
 }
 

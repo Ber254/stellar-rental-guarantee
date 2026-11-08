@@ -16,11 +16,16 @@ export default async function Home() {
     <div className="space-y-12">
       <div className="grid items-center gap-8 rounded-card border border-line bg-surface/80 p-6 shadow-xl shadow-black/20 sm:p-10 lg:grid-cols-12">
         <div className="space-y-6 lg:col-span-7">
-          <div className="inline-flex items-center gap-2 rounded-full border border-accent/40 bg-accent/10 px-3.5 py-1 text-xs font-semibold text-accent">
-            <span className="h-2 w-2 rounded-full bg-accent" />
-            {isEs
-              ? "Escrow no custodial en Stellar · USDC · 0,05% comisión"
-              : "Non-custodial escrow on Stellar · USDC · 0.05% fee"}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-accent/40 bg-accent/10 px-3.5 py-1 text-xs font-semibold text-accent">
+              <span className="h-2 w-2 rounded-full bg-accent" />
+              {isEs ? "Tu garantía, sin vueltas." : "Your guarantee, no runaround."}
+            </div>
+            <span className="text-xs font-medium text-muted">
+              {isEs
+                ? "Escrow no custodial en Stellar · USDC · 0,05% comisión"
+                : "Non-custodial escrow on Stellar · USDC · 0.05% fee"}
+            </span>
           </div>
 
           <h1 className="text-3xl font-bold tracking-tight text-fg sm:text-5xl sm:leading-[1.12]">
@@ -34,7 +39,7 @@ export default async function Home() {
           <div className="flex flex-wrap items-center gap-3 pt-1">
             <Link
               href="/register"
-              className="rounded-card bg-accent px-5 py-2.5 text-sm font-semibold text-accent-fg shadow-md shadow-accent/20 transition hover:brightness-110"
+              className="rounded-card bg-gradient-to-r from-[#12A8FF] via-[#3B68FF] to-[#6D28D9] px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-[#3B68FF]/25 transition hover:brightness-110"
             >
               {t.nav.signUp}
             </Link>
