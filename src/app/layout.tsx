@@ -34,9 +34,24 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col bg-bg text-fg">
         <I18nProvider locale={locale} dictionary={dictionary}>
           <SiteHeader theme={theme} />
-          <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
+          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
             {children}
           </main>
+          <footer className="border-t border-line/60 bg-surface/50 py-6 text-xs text-muted">
+            <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 sm:px-6">
+              <span>Safexy · Non-custodial rental guarantees on Stellar (Soroban + USDC)</span>
+              <div className="flex items-center gap-4">
+                <a
+                  href="https://stellar.expert/explorer/testnet/contract/CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-mono hover:text-fg hover:underline"
+                >
+                  Contract CCAT2N5J…76LV ↗
+                </a>
+              </div>
+            </div>
+          </footer>
         </I18nProvider>
       </body>
     </html>

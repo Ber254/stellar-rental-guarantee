@@ -263,7 +263,7 @@ export const es = {
   },
   wallet: {
     connect: "Conectar wallet",
-    notDetected: "Freighter no detectado — las cuentas de demo siguen funcionando.",
+    notDetected: "Varial / Freighter no detectado — las cuentas de prueba siguen funcionando.",
   },
   notifications: {
     empty: "Todavía no tenés notificaciones.",
@@ -649,7 +649,7 @@ export const en: Dictionary = {
   },
   wallet: {
     connect: "Connect wallet",
-    notDetected: "Freighter not detected — demo accounts still work.",
+    notDetected: "Varial / Freighter not detected — demo accounts still work.",
   },
   notifications: {
     empty: "No notifications yet.",

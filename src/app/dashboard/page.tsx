@@ -6,12 +6,26 @@ import { Card, StatusBadge } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
 import { getDictionary, type Dictionary } from "@/lib/i18n";
 import { getLocale } from "@/lib/i18n/server";
-import { formatUsdc } from "@/lib/money";
+import { formatUsdc, fromStroops, toStroops } from "@/lib/money";
 import { listContracts } from "@/lib/services/contracts";
 
 type Row = Awaited<ReturnType<typeof listContracts>>[number];
 
-function GuaranteeList({ items, empty, t }: { items: Row[]; empty: string; t: Dictionary }) {
+function formatDate(value: Date) {
+  return new Date(value).toISOString().slice(0, 10);
+}
+
+function GuaranteeList({
+  items,
+  empty,
+  roleLabel,
+  t,
+}: {
+  items: Row[];
+  empty: string;
+  roleLabel: string;
+  t: Dictionary;
+}) {
   if (items.length === 0) {
     return (
       <Card>
@@ -20,25 +34,54 @@ function GuaranteeList({ items, empty, t }: { items: Row[]; empty: string; t: Di
     );
   }
   return (
-    <ul className="space-y-3">
-      {items.map(({ contract, property }) => (
-        <li key={contract.id}>
-          <Link href={`/contracts/${contract.id}`} className="block">
-            <div className="flex items-center justify-between rounded-card border border-line bg-surface p-5 transition hover:border-accent">
-              <div>
-                <p className="font-medium text-fg">{property?.label ?? contract.reference}</p>
-                <p className="text-sm text-muted">{contract.reference}</p>
+    <ul className="grid gap-3">
+      {items.map(({ contract, property, guarantee }) => {
+        const locked =
+          guarantee?.lockedAmount ?? guarantee?.amount ?? contract.guaranteeAmount;
+        const hasPartial =
+          guarantee?.lockedAmount &&
+          Number(guarantee.lockedAmount) < Number(contract.guaranteeAmount) &&
+          Number(guarantee.lockedAmount) > 0;
+        return (
+          <li key={contract.id}>
+            <Link href={`/contracts/${contract.id}`} className="group block">
+              <div className="flex flex-wrap items-center justify-between gap-4 rounded-card border border-line bg-surface/90 p-5 shadow-md shadow-black/10 transition group-hover:border-accent group-hover:bg-surface-muted/70">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-base font-semibold text-fg group-hover:text-accent">
+                      {property?.label ?? contract.reference}
+                    </p>
+                    <span className="rounded border border-line bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-muted">
+                      {roleLabel}
+                    </span>
+                  </div>
+                  <p className="font-mono text-xs text-muted">
+                    {contract.reference}
+                    {property?.address ? ` · ${property.address}` : ""} ·{" "}
+                    {formatDate(contract.startDate)} → {formatDate(contract.endDate)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <p className="font-mono text-base font-bold text-fg">
+                      {formatUsdc(locked)}
+                    </p>
+                    {hasPartial && (
+                      <p className="text-[11px] text-muted">
+                        {t.contract.guarantee}: {formatUsdc(contract.guaranteeAmount)}
+                      </p>
+                    )}
+                  </div>
+                  <StatusBadge status={contract.status} label={t.status[contract.status]} />
+                  <span className="text-muted transition group-hover:translate-x-0.5 group-hover:text-accent">
+                    →
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-medium text-fg">
-                  {formatUsdc(contract.guaranteeAmount)}
-                </span>
-                <StatusBadge status={contract.status} label={t.status[contract.status]} />
-              </div>
-            </div>
-          </Link>
-        </li>
-      ))}
+            </Link>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -53,28 +96,77 @@ export default async function DashboardPage() {
   const given = rows.filter((row) => row.contract.guarantorId === user.id);
   const received = rows.filter((row) => row.contract.landlordId === user.id);
 
+  const totalLockedStroops = rows.reduce((sum, { guarantee }) => {
+    if (guarantee?.status !== "LOCKED") {
+      return sum;
+    }
+    const locked = guarantee.lockedAmount ?? guarantee.amount;
+    return sum + toStroops(locked);
+  }, 0n);
+
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-fg">{t.dashboard.title}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-fg sm:text-3xl">
+            {t.dashboard.title}
+          </h1>
+          <p className="mt-1 text-sm text-muted">
+            @{user.alias ?? user.name}
+          </p>
+        </div>
         <Link
           href="/contracts/new"
-          className="rounded-card bg-accent px-4 py-2 text-sm font-medium text-accent-fg"
+          className="inline-flex items-center gap-2 rounded-card bg-accent px-4 py-2.5 text-sm font-semibold text-accent-fg shadow-md shadow-accent/20 transition hover:brightness-110"
         >
+          <span>+</span>
           {t.dashboard.newGuarantee}
         </Link>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="rounded-card border border-line bg-surface/90 p-5 shadow-md shadow-black/10">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted">
+            {t.contract.locked}
+          </p>
+          <p className="mt-2 font-mono text-2xl font-bold text-accent">
+            {formatUsdc(fromStroops(totalLockedStroops))}
+          </p>
+        </div>
+        <div className="rounded-card border border-line bg-surface/90 p-5 shadow-md shadow-black/10">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted">
+            {t.dashboard.given}
+          </p>
+          <p className="mt-2 font-mono text-2xl font-bold text-fg">{given.length}</p>
+        </div>
+        <div className="rounded-card border border-line bg-surface/90 p-5 shadow-md shadow-black/10">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted">
+            {t.dashboard.received}
+          </p>
+          <p className="mt-2 font-mono text-2xl font-bold text-fg">{received.length}</p>
+        </div>
       </div>
 
       <HowItWorks label={t.dashboard.howItWorks} body={t.dashboard.howItWorksBody} />
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-fg">{t.dashboard.given}</h2>
-        <GuaranteeList items={given} empty={t.dashboard.givenEmpty} t={t} />
+        <h2 className="text-base font-semibold tracking-tight text-fg">{t.dashboard.given}</h2>
+        <GuaranteeList
+          items={given}
+          empty={t.dashboard.givenEmpty}
+          roleLabel={t.dashboard.roleGuarantor}
+          t={t}
+        />
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-fg">{t.dashboard.received}</h2>
-        <GuaranteeList items={received} empty={t.dashboard.receivedEmpty} t={t} />
+        <h2 className="text-base font-semibold tracking-tight text-fg">{t.dashboard.received}</h2>
+        <GuaranteeList
+          items={received}
+          empty={t.dashboard.receivedEmpty}
+          roleLabel={t.dashboard.roleLandlord}
+          t={t}
+        />
       </section>
     </div>
   );

@@ -15,11 +15,11 @@ export function Card({
   actions?: ReactNode;
 }) {
   return (
-    <section className="rounded-card border border-line bg-surface p-6">
+    <section className="rounded-card border border-line bg-surface/90 p-6 shadow-lg shadow-black/15 backdrop-blur-sm">
       {(title || actions) && (
-        <header className="mb-4 flex items-start justify-between gap-4">
+        <header className="mb-5 flex items-start justify-between gap-4 border-b border-line/60 pb-4">
           <div>
-            {title && <h2 className="text-base font-semibold text-fg">{title}</h2>}
+            {title && <h2 className="text-base font-semibold tracking-tight text-fg">{title}</h2>}
             {description && <p className="mt-1 text-sm text-muted">{description}</p>}
           </div>
           {actions}
@@ -31,18 +31,18 @@ export function Card({
 }
 
 const STATUS_TONES: Record<ContractStatus, string> = {
-  DRAFT: "bg-neutral-bg text-neutral-fg",
-  PENDING_ACCEPTANCE: "bg-warn-bg text-warn-fg",
-  AWAITING_FUNDING: "bg-warn-bg text-warn-fg",
-  ACTIVE: "bg-ok-bg text-ok-fg",
-  RETURN_REQUESTED: "bg-info-bg text-info-fg",
-  NEGOTIATION: "bg-info-bg text-info-fg",
-  AGREED: "bg-info-bg text-info-fg",
-  RELEASED: "bg-accent text-accent-fg",
-  COMPLETED: "bg-accent text-accent-fg",
-  CANCELLED: "bg-danger-bg text-danger-fg",
-  REJECTED: "bg-danger-bg text-danger-fg",
-  EXPIRED: "bg-warn-bg text-warn-fg",
+  DRAFT: "bg-neutral-bg text-neutral-fg border-line",
+  PENDING_ACCEPTANCE: "bg-warn-bg/90 text-warn-fg border-warn-fg/30",
+  AWAITING_FUNDING: "bg-warn-bg/90 text-warn-fg border-warn-fg/30",
+  ACTIVE: "bg-ok-bg/90 text-ok-fg border-ok-fg/30",
+  RETURN_REQUESTED: "bg-info-bg/90 text-info-fg border-info-fg/30",
+  NEGOTIATION: "bg-info-bg/90 text-info-fg border-info-fg/30",
+  AGREED: "bg-info-bg/90 text-info-fg border-info-fg/30",
+  RELEASED: "bg-accent text-accent-fg border-accent",
+  COMPLETED: "bg-accent text-accent-fg border-accent",
+  CANCELLED: "bg-danger-bg/90 text-danger-fg border-danger-fg/30",
+  REJECTED: "bg-danger-bg/90 text-danger-fg border-danger-fg/30",
+  EXPIRED: "bg-warn-bg/90 text-warn-fg border-warn-fg/30",
 };
 
 export function StatusBadge({
@@ -54,8 +54,9 @@ export function StatusBadge({
 }) {
   return (
     <span
-      className={`inline-flex rounded-badge px-2.5 py-1 text-xs font-medium ${STATUS_TONES[status]}`}
+      className={`inline-flex items-center gap-1.5 rounded-badge border px-3 py-1 text-xs font-semibold tracking-wide ${STATUS_TONES[status]}`}
     >
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
       {label}
     </span>
   );
@@ -74,13 +75,13 @@ export function Field({
     <label className="block text-sm">
       <span className="font-medium text-fg">{label}</span>
       {children}
-      {hint && <span className="mt-1 block text-xs text-muted">{hint}</span>}
+      {hint && <span className="mt-1.5 block text-xs leading-relaxed text-muted">{hint}</span>}
     </label>
   );
 }
 
 const inputClass =
-  "mt-1 w-full rounded-card border border-line bg-surface-muted px-3 py-2 text-sm text-fg outline-none placeholder:text-muted focus:border-accent";
+  "mt-1.5 w-full rounded-card border border-line bg-surface-muted/90 px-3.5 py-2.5 text-sm text-fg outline-none transition placeholder:text-muted/70 focus:border-accent focus:ring-2 focus:ring-accent/20";
 
 export function Input(props: ComponentProps<"input">) {
   return <input {...props} className={`${inputClass} ${props.className ?? ""}`} />;
@@ -98,23 +99,26 @@ export function Button({
   ...props
 }: ComponentProps<"button"> & { variant?: "primary" | "secondary" | "danger" }) {
   const tones = {
-    primary: "bg-accent text-accent-fg hover:opacity-90",
-    secondary: "border border-line bg-surface-muted text-fg hover:border-accent",
-    danger: "border border-line bg-danger-bg text-danger-fg hover:opacity-90",
+    primary:
+      "bg-accent text-accent-fg font-semibold shadow-sm shadow-accent/20 hover:brightness-110 active:scale-[0.99]",
+    secondary:
+      "border border-line bg-surface-muted/80 text-fg hover:border-accent/70 hover:bg-surface-muted",
+    danger:
+      "border border-danger-fg/30 bg-danger-bg text-danger-fg hover:brightness-110",
   };
   return (
     <button
       {...props}
-      className={`inline-flex items-center justify-center rounded-card px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${tones[variant]} ${className}`}
+      className={`inline-flex cursor-pointer items-center justify-center rounded-card px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${tones[variant]} ${className}`}
     />
   );
 }
 
 export function Row({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 border-b border-line py-2 last:border-none">
+    <div className="flex items-baseline justify-between gap-4 border-b border-line/60 py-2.5 last:border-none">
       <dt className="text-sm text-muted">{label}</dt>
-      <dd className="text-right text-sm font-medium text-fg">{value}</dd>
+      <dd className="text-right text-sm font-semibold text-fg">{value}</dd>
     </div>
   );
 }
@@ -127,12 +131,12 @@ export function Alert({
   children: ReactNode;
 }) {
   const tones = {
-    info: "bg-info-bg text-info-fg",
-    error: "bg-danger-bg text-danger-fg",
-    warning: "bg-warn-bg text-warn-fg",
+    info: "bg-info-bg/90 text-info-fg border-info-fg/30",
+    error: "bg-danger-bg/90 text-danger-fg border-danger-fg/30",
+    warning: "bg-warn-bg/90 text-warn-fg border-warn-fg/30",
   };
   return (
-    <p className={`rounded-card border border-line px-3 py-2 text-sm ${tones[tone]}`}>
+    <p className={`rounded-card border px-4 py-3 text-sm font-medium ${tones[tone]}`}>
       {children}
     </p>
   );
@@ -140,7 +144,10 @@ export function Alert({
 
 export function NavLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <Link href={href} className="text-sm font-medium text-muted hover:text-fg">
+    <Link
+      href={href}
+      className="rounded-lg px-2.5 py-1.5 text-sm font-medium text-muted transition hover:bg-surface-muted hover:text-fg"
+    >
       {children}
     </Link>
   );

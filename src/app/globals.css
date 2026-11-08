@@ -3,25 +3,25 @@
 /* Modern: dark, high contrast, aqua accent — the default experience. */
 :root,
 [data-theme="modern"] {
-  --bg: #080b14;
-  --surface: #101627;
-  --surface-muted: #161e33;
-  --fg: #eef2ff;
-  --muted: #94a3c4;
-  --line: #24304d;
-  --accent: #35e0c0;
-  --accent-fg: #06221c;
-  --neutral-bg: #1c2540;
-  --neutral-fg: #c7d2fe;
-  --ok-bg: #0f3b30;
+  --bg: #060913;
+  --surface: #0d1324;
+  --surface-muted: #131c33;
+  --fg: #f1f5f9;
+  --muted: #94a3b8;
+  --line: #1e2d4a;
+  --accent: #2dd4bf;
+  --accent-fg: #042f2e;
+  --neutral-bg: #17213a;
+  --neutral-fg: #cbd5e1;
+  --ok-bg: #0b362c;
   --ok-fg: #6ee7b7;
-  --warn-bg: #3d2f0c;
+  --warn-bg: #3b2a0a;
   --warn-fg: #fcd34d;
-  --info-bg: #10304d;
+  --info-bg: #0d2d4a;
   --info-fg: #7dd3fc;
-  --danger-bg: #431722;
+  --danger-bg: #3f1420;
   --danger-fg: #fda4af;
-  --card-radius: 0.75rem;
+  --card-radius: 1rem;
   --badge-radius: 9999px;
   color-scheme: dark;
   --ui-font: var(--font-geist-sans);
@@ -79,9 +79,17 @@
 }
 
 body {
-  background: var(--bg);
+  background-color: var(--bg);
   color: var(--fg);
   font-family: var(--ui-font), system-ui, sans-serif;
+}
+
+:root body,
+[data-theme="modern"] body {
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -15%, rgba(45, 212, 191, 0.14), transparent),
+    radial-gradient(ellipse 50% 40% at 90% 10%, rgba(56, 189, 248, 0.08), transparent);
+  background-attachment: fixed;
 }
 
 [data-theme="retro"] body {

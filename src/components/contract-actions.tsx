@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import type { ContractStatus, PartyRole } from "@/lib/db/schema";
 import { apiErrorMessage, interpolate } from "@/lib/i18n";
+import { formatUsdc } from "@/lib/money";
 import type { ChainStep } from "@/lib/services/chain";
 import { useI18n } from "./i18n-provider";
 import { Alert, Button, Card, Field, Input } from "./ui";
@@ -303,21 +304,23 @@ export function ContractActions({
 
         {isActive && (
           <div className="space-y-4">
-            <p className="text-sm text-muted">
-              {interpolate(t.actions.lockedAmount, { amount: locked })}
-            </p>
+            <div className="rounded-lg border border-accent/30 bg-accent/10 px-3.5 py-2.5 text-sm font-medium text-accent">
+              {interpolate(t.actions.lockedAmount, { amount: formatUsdc(locked) })}
+            </div>
             {status === "EXPIRED" && <Alert tone="warning">{t.actions.expired}</Alert>}
 
             {role === "GUARANTOR" && (
-              <div className="space-y-2 rounded-card border border-line p-4">
-                <p className="text-sm font-medium text-fg">{t.actions.requestReturnTitle}</p>
-                <p className="text-xs text-muted">{t.actions.requestReturnHint}</p>
+              <div className="space-y-3 rounded-card border border-line bg-surface-muted/50 p-4">
+                <div>
+                  <p className="text-sm font-semibold text-fg">{t.actions.requestReturnTitle}</p>
+                  <p className="mt-0.5 text-xs text-muted">{t.actions.requestReturnHint}</p>
+                </div>
                 <Field label={t.actions.requestReturnAmount}>
                   <Input
                     inputMode="decimal"
                     value={returnAmount}
                     onChange={(event) => setReturnAmount(event.target.value)}
-                    placeholder={locked}
+                    placeholder={String(Number(locked))}
                   />
                 </Field>
                 <Button
@@ -334,15 +337,17 @@ export function ContractActions({
             )}
 
             {role === "LANDLORD" && (
-              <div className="space-y-2 rounded-card border border-line p-4">
-                <p className="text-sm font-medium text-fg">{t.actions.returnUnilateralTitle}</p>
-                <p className="text-xs text-muted">{t.actions.returnUnilateralHint}</p>
+              <div className="space-y-3 rounded-card border border-line bg-surface-muted/50 p-4">
+                <div>
+                  <p className="text-sm font-semibold text-fg">{t.actions.returnUnilateralTitle}</p>
+                  <p className="mt-0.5 text-xs text-muted">{t.actions.returnUnilateralHint}</p>
+                </div>
                 <Field label={t.actions.requestReturnAmount}>
                   <Input
                     inputMode="decimal"
                     value={unilateralAmount}
                     onChange={(event) => setUnilateralAmount(event.target.value)}
-                    placeholder={locked}
+                    placeholder={String(Number(locked))}
                   />
                 </Field>
                 <Button
@@ -359,9 +364,11 @@ export function ContractActions({
             )}
 
             {role === "GUARANTOR" && !pendingExtension && (
-              <div className="space-y-2 rounded-card border border-line p-4">
-                <p className="text-sm font-medium text-fg">{t.actions.extendTitle}</p>
-                <p className="text-xs text-muted">{t.actions.extendHint}</p>
+              <div className="space-y-3 rounded-card border border-line bg-surface-muted/50 p-4">
+                <div>
+                  <p className="text-sm font-semibold text-fg">{t.actions.extendTitle}</p>
+                  <p className="mt-0.5 text-xs text-muted">{t.actions.extendHint}</p>
+                </div>
                 <Field label={t.actions.extendNewAmount}>
                   <Input
                     inputMode="decimal"
@@ -395,7 +402,7 @@ export function ContractActions({
           <div className="space-y-2 rounded-card border border-line bg-surface-muted p-4">
             <p className="text-sm text-fg">
               {interpolate(t.actions.extendPending, {
-                amount: pendingExtension.proposedNewAmount,
+                amount: String(Number(pendingExtension.proposedNewAmount)),
                 date: pendingExtension.proposedNewEndDate.slice(0, 10),
               })}
             </p>
@@ -422,8 +429,8 @@ export function ContractActions({
               <div className="rounded-card border border-line bg-surface-muted p-4 text-sm">
                 <p className="font-medium text-fg">
                   {interpolate(t.actions.openProposal, {
-                    guarantor: pendingProposal.toGuarantor,
-                    landlord: pendingProposal.toLandlord,
+                    guarantor: String(Number(pendingProposal.toGuarantor)),
+                    landlord: String(Number(pendingProposal.toLandlord)),
                   })}
                 </p>
                 {pendingProposal.mine ? (
