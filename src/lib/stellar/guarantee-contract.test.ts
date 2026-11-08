@@ -54,6 +54,16 @@ describe("assertMatchesCall", () => {
       assertMatchesCall(envelope(ESCROW, tampered), call),
     ).toThrow(/unexpected arguments/);
   });
+
+  it("rejects a mismatched source account when expectedSource is provided", () => {
+    const otherSource = "GDGZ7E2PJZ33M2X7EDDZ65KJCJWQP5QCZWDEBHSBRNHNQRYCGMHXJGBH";
+    expect(() =>
+      assertMatchesCall(envelope(ESCROW, call), call, otherSource),
+    ).toThrow(/unexpected source account/);
+    expect(() =>
+      assertMatchesCall(envelope(ESCROW, call), call, SOURCE),
+    ).not.toThrow();
+  });
 });
 
 describe("onChainIdFromReference", () => {

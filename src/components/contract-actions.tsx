@@ -57,6 +57,7 @@ export function ContractActions({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toGuarantor, setToGuarantor] = useState("");
+  const [toLandlord, setToLandlord] = useState("");
   const [returnAmount, setReturnAmount] = useState("");
   const [unilateralAmount, setUnilateralAmount] = useState("");
   const [rejectReason, setRejectReason] = useState("");
@@ -90,6 +91,11 @@ export function ContractActions({
         result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(apiErrorMessage(t, result, t.actions.failed));
       }
+      setReturnAmount("");
+      setToGuarantor("");
+      setToLandlord("");
+      setUnilateralAmount("");
+      setSettlementRejectReason("");
       router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t.actions.failed);
@@ -152,11 +158,20 @@ export function ContractActions({
   const total = Number(locked);
   const guarantorShare = toGuarantor === "" ? null : Number(toGuarantor);
   const landlordShare =
-    guarantorShare === null || Number.isNaN(guarantorShare)
-      ? null
-      : Math.round((total - guarantorShare) * 1e7) / 1e7;
+    toLandlord !== ""
+      ? Number(toLandlord)
+      : guarantorShare === null || Number.isNaN(guarantorShare)
+        ? null
+        : Math.round((total - guarantorShare) * 1e7) / 1e7;
   const shareValid =
-    landlordShare !== null && landlordShare >= 0 && guarantorShare !== null && guarantorShare >= 0;
+    landlordShare !== null &&
+    !Number.isNaN(landlordShare) &&
+    landlordShare >= 0 &&
+    guarantorShare !== null &&
+    !Number.isNaN(guarantorShare) &&
+    guarantorShare >= 0 &&
+    guarantorShare + landlordShare > 0 &&
+    Math.round((guarantorShare + landlordShare) * 1e7) / 1e7 <= total;
 
   const inNegotiation = status === "RETURN_REQUESTED" || status === "NEGOTIATION";
   const isActive = status === "ACTIVE" || status === "EXPIRED";
@@ -438,18 +453,28 @@ export function ContractActions({
             )}
 
             <div className="space-y-2">
-              <Field label={t.actions.counterOffer} hint={t.actions.requestReturnHint}>
-                <Input
-                  inputMode="decimal"
-                  placeholder={t.actions.counterOfferGuarantor}
-                  value={toGuarantor}
-                  onChange={(event) => setToGuarantor(event.target.value)}
-                />
-              </Field>
-              <p className="text-sm text-muted">
-                {t.actions.counterOfferLandlord}:{" "}
-                {shareValid && landlordShare !== null ? landlordShare : "—"}
-              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label={t.actions.counterOfferGuarantor} hint={t.actions.requestReturnHint}>
+                  <Input
+                    inputMode="decimal"
+                    placeholder={t.actions.counterOfferGuarantor}
+                    value={toGuarantor}
+                    onChange={(event) => setToGuarantor(event.target.value)}
+                  />
+                </Field>
+                <Field label={t.actions.counterOfferLandlord}>
+                  <Input
+                    inputMode="decimal"
+                    placeholder={
+                      guarantorShare !== null && !Number.isNaN(guarantorShare) && total >= guarantorShare
+                        ? String(Math.round((total - guarantorShare) * 1e7) / 1e7)
+                        : "0"
+                    }
+                    value={toLandlord}
+                    onChange={(event) => setToLandlord(event.target.value)}
+                  />
+                </Field>
+              </div>
               <Button
                 disabled={busy !== null || !shareValid}
                 onClick={() =>

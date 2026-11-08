@@ -314,3 +314,53 @@ las garantías `1`/`2` que ya existían en testnet de la verificación previa.
 
 **Pendiente real:** ninguno en el flujo principal. Queda el paso a mainnet y la
 decisión de producto que implica — fuera del MVP, que es testnet por diseño.
+
+## 2026-11-08 — Semana 1 Instaward: devoluciones parciales sucesivas on-chain
+
+Ejecutado el entregable de la **Semana 1** del SOW (`scripts/partial-returns-flow.ts`)
+contra el contrato v2 en Stellar testnet (`CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV`),
+forzando el flujo real de firma en 2 pasos (`startStep` → XDR firmado por la
+wallet → `completeStep` con validación `assertMatchesCall` → envío a Soroban RPC).
+
+### Ajustes de integración resueltos al correr contra la red real
+
+1. **Validación de cuenta origen en `assertMatchesCall` (`guarantee-contract.ts` / `chain.ts`)**:
+   se verifica que `tx.source` coincida con la wallet de la parte que ejecuta el
+   paso (`expectedSource`), además del contrato, método y argumentos, y se
+   reintentan envíos cuando Soroban RPC responde `TRY_AGAIN_LATER`.
+2. **Numeración de rondas y auto-aceptación en `chain.ts`**: en devoluciones
+   parciales sucesivas, `round` ahora continúa la secuencia histórica de la
+   garantía (`lastProposalRound + 1`) en lugar de reiniciarse a `1` tras cada
+   liquidación parcial; además se bloquea off-chain que quien propuso acepte su
+   propia propuesta.
+3. **Contraofertas parciales en UI (`contract-actions.tsx`) y validación de
+   monto cero (`money.ts`)**: se habilitó el campo editable para el locador en
+   contraofertas para permitir repartos parciales (`toGuarantor + toLandlord <= locked`),
+   se limpian los inputs tras cada paso y `amountsWithinLocked` rechaza
+   propuestas `0 / 0`.
+4. **Aislamiento de tests de integración (`settlement-flows.integration.test.ts`)**:
+   se fuerza modo simulado en la suite de Postgres cuando `.env.local` tiene
+   cargadas las variables de testnet, y se amplió el test para cubrir dos
+   devoluciones parciales negociadas sucesivas antes de la devolución unilateral
+   (44/44 tests en verde).
+
+### Evidencia on-chain (`SFX-2026-000102`, on-chain id `2026000102`)
+
+| Paso | Operación Soroban | Tx hash | Explorer |
+| --- | --- | --- | --- |
+| 1. Registro | `create_guarantee(2026000102, 1000 USDC)` | `4eacf18f2bec60137c9774becadc0bda05d9907612223b209d6170bc8dcf16e3` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/4eacf18f2bec60137c9774becadc0bda05d9907612223b209d6170bc8dcf16e3) |
+| 2. Fondeo | `fund_guarantee(2026000102)` | `efcd03fb379ac02f9db759c32c2c6135a3ebf224562e873b7a50250cf9f72f59` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/efcd03fb379ac02f9db759c32c2c6135a3ebf224562e873b7a50250cf9f72f59) |
+| 3. Parcial #1 — propuesta garante | `propose_settlement(350 / 0)` | `e30dc41d6a0b995dd3867843f4167152d342cb9e9f2a1a003228d7371637ce7f` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/e30dc41d6a0b995dd3867843f4167152d342cb9e9f2a1a003228d7371637ce7f) |
+| 4. Parcial #1 — contraoferta locador | `propose_settlement(250 / 50)` | `e09a05153e69a0c9fd0531f2360072bb80d065b3d592fff577d4d19723173ab2` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/e09a05153e69a0c9fd0531f2360072bb80d065b3d592fff577d4d19723173ab2) |
+| 5. Parcial #1 — aceptación garante | `accept_settlement(2026000102)` | `587d1bc1f155a5223c2c71e92d982b0cb47dfa014dd5e20af8d315a7107e8ef5` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/587d1bc1f155a5223c2c71e92d982b0cb47dfa014dd5e20af8d315a7107e8ef5) |
+| 6. Parcial #1 — ejecución | `execute_settlement(2026000102)` | `a024210adc300cec65af8716fa190d0146f5e3786f47b9692256d1b6af45f637` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/a024210adc300cec65af8716fa190d0146f5e3786f47b9692256d1b6af45f637) |
+| 7. Parcial #2 — propuesta garante | `propose_settlement(300 / 0)` | `82c4902d13f2fd6d32d148c453036083b6e11ea872df98eedd0f3822d548ae19` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/82c4902d13f2fd6d32d148c453036083b6e11ea872df98eedd0f3822d548ae19) |
+| 8. Parcial #2 — aceptación locador | `accept_settlement(2026000102)` | `faab3c3f3b41efe2dfdd0c0984c12aa3773b950906fc2c4c45be2effb6e654ac` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/faab3c3f3b41efe2dfdd0c0984c12aa3773b950906fc2c4c45be2effb6e654ac) |
+| 9. Parcial #2 — ejecución | `execute_settlement(2026000102)` | `fcac62ed1c2b6cae23108a08ac2881c18294504b8c666339d384788195e88b49` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/fcac62ed1c2b6cae23108a08ac2881c18294504b8c666339d384788195e88b49) |
+
+Verificación de estado on-chain y balances (antes → después de Parcial #1 → después de Parcial #2):
+- `get_guarantee(2026000102)` tras Parcial #1: `funded = 1000` USDC, **`locked = 700` USDC**, `state = Active`.
+- `get_guarantee(2026000102)` tras Parcial #2: `funded = 1000` USDC, **`locked = 400` USDC**, `state = Active`.
+- Garante (`GDGZ7E…JGBH`): 1699,15 → **1248,875** USDC (−1000 fondeado + 249,875 neto en Parcial #1 + 299,85 neto en Parcial #2).
+- Locador (`GBYME6…HX5A`): 300,00 → **350,00** USDC (+50 en Parcial #1 + 0 en Parcial #2).
+- Tesorería (`GCBM7P…UZUB`): 1,00 → **1,275** USDC (+0,125 en Parcial #1 + 0,15 en Parcial #2 = 0,05 % de 550 USDC devueltos al garante).

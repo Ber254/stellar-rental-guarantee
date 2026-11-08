@@ -34,8 +34,9 @@ describe("amountsWithinLocked", () => {
     expect(amountsWithinLocked("300", "0", "1000")).toBe(true);
   });
 
-  it("rejects splits that exceed the locked amount", () => {
+  it("rejects splits that exceed the locked amount or pay out zero", () => {
     expect(amountsWithinLocked("1000", "1000", "1000")).toBe(false);
     expect(amountsWithinLocked("600", "500", "1000")).toBe(false);
+    expect(amountsWithinLocked("0", "0", "1000")).toBe(false);
   });
 });

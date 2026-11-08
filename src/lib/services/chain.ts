@@ -147,6 +147,16 @@ async function openProposal(contractId: string) {
   return proposal ?? null;
 }
 
+async function lastProposalRound(contractId: string): Promise<number> {
+  const [row] = await db
+    .select({ round: proposals.round })
+    .from(proposals)
+    .where(eq(proposals.contractId, contractId))
+    .orderBy(desc(proposals.round))
+    .limit(1);
+  return row?.round ?? 0;
+}
+
 async function pendingExtension(contractId: string) {
   const [row] = await db
     .select()
@@ -344,6 +354,7 @@ async function applyStep(
     case "propose": {
       const proposal = proposeWithReasonSchema.parse(payload.propose);
       const current = await openProposal(contract.id);
+      const previousRound = await lastProposalRound(contract.id);
       if (current) {
         await db
           .update(proposals)
@@ -360,7 +371,7 @@ async function applyStep(
           toGuarantor: proposal.toGuarantor,
           toLandlord: proposal.toLandlord,
           reason: proposal.reason || null,
-          round: (current?.round ?? 0) + 1,
+          round: previousRound + 1,
         })
         .returning();
       await db.insert(proposalActions).values({
@@ -386,6 +397,9 @@ async function applyStep(
     case "accept": {
       const current = await openProposal(contract.id);
       if (!current) throw badRequest("There is no proposal to accept", "noSettlementToAccept");
+      if (current.proposedBy === user.id) {
+        throw forbidden("You cannot accept your own proposal", "cannotAcceptOwnProposal");
+      }
       await db
         .update(proposals)
         .set({ status: "ACCEPTED" })
@@ -644,7 +658,7 @@ export async function completeStep(
   signedXdr: string,
 ): Promise<StepOutcome> {
   const ctx = await loadContext(user, contractId);
-  assertMatchesCall(signedXdr, planStep(ctx, step, payload)());
+  assertMatchesCall(signedXdr, planStep(ctx, step, payload)(), ctx.wallet);
 
   let result: SubmitResult;
   try {

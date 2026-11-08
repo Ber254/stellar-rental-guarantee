@@ -90,11 +90,18 @@ acordada y ejecutada → 299,85 USDC al garante, 0,15 USDC a la tesorería y
    `guarantor`/`landlord`), `propose_settlement`/`accept_settlement`/
    `reject_settlement`/`execute_settlement`, `return_to_guarantor`,
    `propose_extension`/`accept_extension`/`cancel_extension` y `quote_fee`.
-   Verificado end-to-end (creación, aceptación, fondeo, devoluciones
-   parciales sucesivas, devolución unilateral, extensión con aumento y con
-   disminución) contra un Postgres real en modo simulado. **Hecho también
-   contra el contrato desplegado en testnet** (2026-10-03, `SFX-2026-000101`:
-   split 850/150 y comisión de 0,05 % confirmados en balances reales).
+    Verificado end-to-end (creación, aceptación, fondeo, devoluciones
+    parciales sucesivas, devolución unilateral, extensión con aumento y con
+    disminución) contra un Postgres real en modo simulado. **Hecho también
+    contra el contrato desplegado en testnet**:
+    - 2026-10-03 (`SFX-2026-000101`, on-chain `2026000101`): split final 850/150
+      y comisión de 0,05 % confirmados en balances reales.
+    - 2026-11-08 — Semana 1 Instaward (`SFX-2026-000102`, on-chain `2026000102`):
+      **devoluciones parciales sucesivas** con firma de XDR en 2 pasos
+      (`startStep` → firma cliente → `completeStep` con `assertMatchesCall`):
+      1.ª devolución parcial negociada 250/50 (300 USDC liberados, `locked = 700`
+      USDC, `state = Active`) seguida de 2.ª devolución parcial 300/0 (300 USDC
+      liberados, **`locked = 400` USDC**, `funded = 1000` USDC, `state = Active`).
 2. Actualizar `SOROBAN_CONTRACT_ID` en Vercel al contrato nuevo.
 3. `PLATFORM_SECRET_KEY` está vacía en producción, así que el pago final corre
    simulado hasta que se cargue una cuenta de testnet.

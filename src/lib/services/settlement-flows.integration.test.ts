@@ -7,6 +7,9 @@ import { describe, expect, it } from "vitest";
 
 config({ path: ".env.local" });
 config({ path: ".env" });
+// Integration tests verify the database/service state machine with synthetic
+// addresses; keep chain execution simulated even when .env.local points at testnet.
+process.env.SOROBAN_CONTRACT_ID = "";
 
 /**
  * Exercises the money-moving flows (partial returns, unilateral return,
@@ -71,7 +74,7 @@ describe.skipIf(!dbAvailable)("settlement flows (integration)", () => {
     await chain.startStep(guarantor, created.id, "create");
     await chain.startStep(guarantor, created.id, "fund");
 
-    // Guarantor requests 300 back, landlord accepts, it executes.
+    // 1st partial return: guarantor requests 300 back, landlord accepts, it executes.
     await chain.startStep(guarantor, created.id, "propose", {
       propose: { toGuarantor: "300", toLandlord: "0" },
     });
@@ -82,17 +85,32 @@ describe.skipIf(!dbAvailable)("settlement flows (integration)", () => {
     expect(detail.contract.status).toBe("ACTIVE");
     expect(detail.guarantee?.lockedAmount).toBe("700.0000000");
 
+    // 2nd partial return: guarantor proposes 200, landlord counters 150/50, guarantor accepts, it executes.
+    await chain.startStep(guarantor, created.id, "propose", {
+      propose: { toGuarantor: "200", toLandlord: "0" },
+    });
+    await chain.startStep(landlord, created.id, "propose", {
+      propose: { toGuarantor: "150", toLandlord: "50" },
+    });
+    await chain.startStep(guarantor, created.id, "accept");
+    await chain.startStep(guarantor, created.id, "execute");
+
+    detail = await contracts.getContractDetail(created.id, guarantor.id);
+    expect(detail.contract.status).toBe("ACTIVE");
+    expect(detail.guarantee?.lockedAmount).toBe("500.0000000");
+    expect(detail.proposals.map((p) => p.round)).toEqual([3, 2, 1]);
+
     // Landlord returns 200 unilaterally — no negotiation needed.
     await chain.startStep(landlord, created.id, "return-unilateral", {
       returnUnilateral: { amount: "200" },
     });
     detail = await contracts.getContractDetail(created.id, guarantor.id);
-    expect(detail.guarantee?.lockedAmount).toBe("500.0000000");
+    expect(detail.guarantee?.lockedAmount).toBe("300.0000000");
     expect(detail.contract.status).toBe("ACTIVE");
 
-    // Landlord returns the remaining 500 — the guarantee closes.
+    // Landlord returns the remaining 300 — the guarantee closes.
     await chain.startStep(landlord, created.id, "return-unilateral", {
-      returnUnilateral: { amount: "500" },
+      returnUnilateral: { amount: "300" },
     });
     detail = await contracts.getContractDetail(created.id, guarantor.id);
     expect(detail.guarantee?.lockedAmount).toBe("0.0000000");

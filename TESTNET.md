@@ -86,6 +86,15 @@ npx tsx scripts/demo-flow.ts
 ```
 
 Expected output ends with `Submitted on Stellar testnet.` and a 150/850 split.
+
+To run the **Week 1 successive partial returns** flow (two consecutive partial
+settlements leaving a verified remaining locked balance on-chain):
+
+```bash
+npm run dev
+npx tsx scripts/partial-returns-flow.ts
+```
+
 Verify the balances:
 
 ```bash

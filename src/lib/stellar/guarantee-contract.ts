@@ -177,11 +177,19 @@ export async function buildCallXdr(
  * checking that it invokes the escrow function the server planned, with the
  * exact arguments it planned, and nothing else.
  */
-export function assertMatchesCall(signedXdr: string, call: ContractCall) {
+export function assertMatchesCall(
+  signedXdr: string,
+  call: ContractCall,
+  expectedSource?: string,
+) {
   const tx = TransactionBuilder.fromXDR(
     signedXdr,
     networkConfig().networkPassphrase,
   ) as Transaction;
+
+  if (expectedSource && tx.source !== expectedSource) {
+    throw new Error("The signed transaction has an unexpected source account");
+  }
 
   const envelope = tx.toEnvelope();
   if (envelope.type !== "envelopeTypeTx") {
@@ -236,10 +244,14 @@ export async function submitSignedXdr(signedXdr: string): Promise<SubmitResult> 
     networkConfig().networkPassphrase,
   ) as Transaction;
 
-  const sent = await server.sendTransaction(tx);
-  if (sent.status === "ERROR") {
+  let sent = await server.sendTransaction(tx);
+  for (let retry = 0; sent.status === "TRY_AGAIN_LATER" && retry < 3; retry++) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    sent = await server.sendTransaction(tx);
+  }
+  if (sent.status === "ERROR" || sent.status === "TRY_AGAIN_LATER") {
     throw new Error(
-      `Stellar rejected the transaction: ${JSON.stringify(sent.errorResult)}`,
+      `Stellar rejected the transaction (${sent.status}): ${JSON.stringify(sent.errorResult)}`,
     );
   }
 
@@ -275,7 +287,9 @@ export async function signAndSubmit(
     networkConfig().networkPassphrase,
   ) as Transaction;
   tx.sign(keypair);
-  return submitSignedXdr(tx.toXDR());
+  const signedXdr = tx.toXDR();
+  assertMatchesCall(signedXdr, call, keypair.publicKey());
+  return submitSignedXdr(signedXdr);
 }
 
 export async function platformSignAndSubmit(

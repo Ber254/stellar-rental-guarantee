@@ -45,6 +45,8 @@ export function amountsWithinLocked(
   toLandlord: string,
   locked: string,
 ): boolean {
-  const total = toStroops(toGuarantor) + toStroops(toLandlord);
-  return total >= 0n && total <= toStroops(locked);
+  const g = toStroops(toGuarantor);
+  const l = toStroops(toLandlord);
+  const total = g + l;
+  return g >= 0n && l >= 0n && total > 0n && total <= toStroops(locked);
 }
