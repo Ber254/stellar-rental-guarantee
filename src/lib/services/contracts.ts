@@ -438,17 +438,27 @@ export async function getContractForUser(contractId: string, userId: string) {
   return { ...row, contract: await applyPendingExpiry(row.contract) };
 }
 
+const PUBLIC_USER_COLUMNS = {
+  id: users.id,
+  name: users.name,
+  lastName: users.lastName,
+  alias: users.alias,
+  photoUrl: users.photoUrl,
+  stellarAddress: users.stellarAddress,
+  createdAt: users.createdAt,
+};
+
 export async function getContractDetail(contractId: string, userId: string) {
   const row = await getContractForUser(contractId, userId);
 
   const [guarantor] = await db
-    .select()
+    .select(PUBLIC_USER_COLUMNS)
     .from(users)
     .where(eq(users.id, row.contract.guarantorId));
   const landlord = row.contract.landlordId
     ? (
         await db
-          .select()
+          .select(PUBLIC_USER_COLUMNS)
           .from(users)
           .where(eq(users.id, row.contract.landlordId))
       )[0]

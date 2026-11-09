@@ -236,6 +236,10 @@ fn a_party_cannot_accept_its_own_proposal() {
         s.client.try_accept_settlement(&ID, &s.landlord),
         Err(Ok(Error::CannotAcceptOwnProposal))
     );
+    assert_eq!(
+        s.client.try_reject_settlement(&ID, &s.landlord),
+        Err(Ok(Error::CannotAcceptOwnProposal))
+    );
 }
 
 #[test]

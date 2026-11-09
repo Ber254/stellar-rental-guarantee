@@ -304,8 +304,13 @@ impl SafexyGuaranteeContract {
         let guarantee = load(&env, id)?;
         require_party(&guarantee, &caller)?;
 
-        if !env.storage().persistent().has(&DataKey::Settlement(id)) {
-            return Err(Error::NoSettlement);
+        let settlement: Settlement = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Settlement(id))
+            .ok_or(Error::NoSettlement)?;
+        if settlement.proposer == caller {
+            return Err(Error::CannotAcceptOwnProposal);
         }
         env.storage().persistent().remove(&DataKey::Settlement(id));
         Ok(())
@@ -606,7 +611,7 @@ fn fee_for(fee_bps: u32, amount: i128) -> i128 {
         return 0;
     }
     let bps = i128::from(fee_bps);
-    (amount * bps + BPS_DENOMINATOR - 1) / BPS_DENOMINATOR
+    amount.saturating_mul(bps).saturating_add(BPS_DENOMINATOR - 1) / BPS_DENOMINATOR
 }
 
 fn check_amounts(

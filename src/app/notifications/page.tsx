@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 
 import { Card } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
@@ -38,28 +38,51 @@ export default async function NotificationsPage() {
       .limit(50),
     getLocale(),
   ]);
+
+  if (rows.some((row) => !row.readAt)) {
+    await db
+      .update(notifications)
+      .set({ readAt: new Date() })
+      .where(
+        and(eq(notifications.userId, user.id), isNull(notifications.readAt)),
+      );
+  }
+
   const t = getDictionary(locale);
+  const isEs = locale === "es";
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-fg">{t.nav.notifications}</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-fg">{t.nav.notifications}</h1>
       {rows.length === 0 ? (
         <Card>
           <p className="text-sm text-muted">{t.notifications.empty}</p>
         </Card>
       ) : (
-        <ul className="space-y-2">
+        <ul className="space-y-2.5">
           {rows.map((row) => {
             const { title, body } = renderNotification(t, row);
+            const isUnread = !row.readAt;
             return (
               <li key={row.id}>
                 <Link
                   href={row.contractId ? `/contracts/${row.contractId}` : "#"}
-                  className="block rounded-card border border-line bg-surface p-4 transition hover:border-accent"
+                  className={`block rounded-card border p-4 transition hover:border-accent ${
+                    isUnread
+                      ? "border-accent/50 bg-surface-muted/80"
+                      : "border-line bg-surface/90"
+                  }`}
                 >
-                  <p className="text-sm font-medium text-fg">{title}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-fg">{title}</p>
+                    {isUnread && (
+                      <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold uppercase text-accent-fg">
+                        {isEs ? "Nueva" : "New"}
+                      </span>
+                    )}
+                  </div>
                   {body && <p className="mt-1 text-sm text-muted">{body}</p>}
-                  <p className="mt-1 text-xs text-muted">
+                  <p className="mt-1.5 font-mono text-xs text-muted">
                     {new Date(row.createdAt).toLocaleString(locale)}
                   </p>
                 </Link>

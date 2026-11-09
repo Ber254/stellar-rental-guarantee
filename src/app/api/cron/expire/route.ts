@@ -1,4 +1,12 @@
+import { timingSafeEqual } from "node:crypto";
+
 import { expireStaleContracts } from "@/lib/services/contracts";
+
+function safeEquals(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  return bufA.length === bufB.length && timingSafeEqual(bufA, bufB);
+}
 
 /**
  * Scheduled by Vercel Cron (see vercel.json). Vercel signs the request with
@@ -12,7 +20,8 @@ export async function GET(request: Request) {
   if (!secret) {
     return Response.json({ error: "CRON_SECRET is not configured" }, { status: 503 });
   }
-  if (request.headers.get("authorization") !== `Bearer ${secret}`) {
+  const auth = request.headers.get("authorization") ?? "";
+  if (!safeEquals(auth, `Bearer ${secret}`)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
