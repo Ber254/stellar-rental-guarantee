@@ -1,31 +1,32 @@
-import { Account, Contract, TransactionBuilder } from "@stellar/stellar-sdk";
+import { Account, Contract, Keypair, TransactionBuilder } from "@stellar/stellar-sdk";
 import { describe, expect, it } from "vitest";
 
 const ESCROW = "CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV";
 const OTHER_CONTRACT = "CDSA3RLXVDMZGV6ZWDZY3HKFDJT2ZSEUCHPMG3OQXQUNU5W64XMHCIIO";
-const SOURCE = "GCKMGALLPD64ZMCQBQIO36AZGKMN3MC4A7KK6Q6SEDYGWLZNJGTYR4PX";
+const SOURCE_KP = Keypair.random();
+const SOURCE = SOURCE_KP.publicKey();
 const PASSPHRASE = "Test SDF Network ; September 2015";
 
 process.env.SOROBAN_CONTRACT_ID = ESCROW;
 process.env.STELLAR_USDC_CONTRACT_ID = OTHER_CONTRACT;
 process.env.STELLAR_NETWORK_PASSPHRASE = PASSPHRASE;
 
-const { assertMatchesCall, calls, onChainIdFromReference } = await import(
-  "./guarantee-contract"
-);
+const { assertMatchesCall, buildFeeBumpXdr, calls, onChainIdFromReference } =
+  await import("./guarantee-contract");
 
 type Call = ReturnType<typeof calls.acceptSettlement>;
 
-function envelope(contractId: string, call: Call) {
+function envelope(contractId: string, call: Call, sign = false) {
   const contract = new Contract(contractId);
-  return new TransactionBuilder(new Account(SOURCE, "0"), {
+  const tx = new TransactionBuilder(new Account(SOURCE, "0"), {
     fee: "1000000",
     networkPassphrase: PASSPHRASE,
   })
     .addOperation(contract.call(call.method, ...call.args))
     .setTimeout(120)
-    .build()
-    .toXDR();
+    .build();
+  if (sign) tx.sign(SOURCE_KP);
+  return tx.toXDR();
 }
 
 describe("assertMatchesCall", () => {
@@ -55,14 +56,25 @@ describe("assertMatchesCall", () => {
     ).toThrow(/unexpected arguments/);
   });
 
-  it("rejects a mismatched source account when expectedSource is provided", () => {
+  it("rejects a mismatched source account or unsigned tx when expectedSource is provided", () => {
     const otherSource = "GDGZ7E2PJZ33M2X7EDDZ65KJCJWQP5QCZWDEBHSBRNHNQRYCGMHXJGBH";
     expect(() =>
-      assertMatchesCall(envelope(ESCROW, call), call, otherSource),
+      assertMatchesCall(envelope(ESCROW, call, true), call, otherSource),
     ).toThrow(/unexpected source account/);
     expect(() =>
-      assertMatchesCall(envelope(ESCROW, call), call, SOURCE),
+      assertMatchesCall(envelope(ESCROW, call, false), call, SOURCE),
+    ).toThrow(/not been signed/);
+    expect(() =>
+      assertMatchesCall(envelope(ESCROW, call, true), call, SOURCE),
     ).not.toThrow();
+  });
+
+  it("wraps a user-signed XDR into a platform-sponsored FeeBumpTransaction", () => {
+    const sponsor = Keypair.random();
+    const innerSigned = envelope(ESCROW, call, true);
+    const feeBumpXdr = buildFeeBumpXdr(innerSigned, sponsor.secret());
+    const parsed = TransactionBuilder.fromXDR(feeBumpXdr, PASSPHRASE);
+    expect("innerTransaction" in parsed).toBe(true);
   });
 });
 

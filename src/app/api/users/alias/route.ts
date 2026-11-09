@@ -2,16 +2,16 @@ import { z } from "zod";
 
 import { errorResponse } from "@/lib/api";
 import { isAliasAvailable, isValidAlias, normalizeAlias, setAlias } from "@/lib/alias";
-import { requireUser } from "@/lib/auth";
+import { getCurrentUser, requireUser } from "@/lib/auth";
 import { badRequest, conflict } from "@/lib/services/errors";
 
 export async function GET(request: Request) {
   try {
-    const user = await requireUser();
+    const user = await getCurrentUser();
     const raw = new URL(request.url).searchParams.get("alias") ?? "";
     const alias = normalizeAlias(raw);
     const valid = isValidAlias(alias);
-    const available = valid && (await isAliasAvailable(alias, user.id));
+    const available = valid && (await isAliasAvailable(alias, user?.id));
     return Response.json({ alias, valid, available });
   } catch (error) {
     return errorResponse(error);

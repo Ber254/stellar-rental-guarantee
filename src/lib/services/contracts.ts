@@ -518,6 +518,15 @@ export async function notify(
 ) {
   if (!userId) return;
   await db.insert(notifications).values({ userId, contractId, kind, data });
+
+  const webhookUrl = process.env.NOTIFICATION_WEBHOOK_URL;
+  if (webhookUrl) {
+    void fetch(webhookUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userId, contractId, kind, data, timestamp: new Date().toISOString() }),
+    }).catch(() => {});
+  }
 }
 
 export function counterpartyId(contract: RentalContract, userId: string) {

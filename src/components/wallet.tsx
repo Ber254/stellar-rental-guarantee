@@ -2,6 +2,7 @@
 
 import {
   getAddress,
+  getNetworkDetails,
   isConnected,
   requestAccess,
   signTransaction,
@@ -18,6 +19,7 @@ const shorten = (address: string) =>
 type WalletState = {
   address: string | null;
   available: boolean;
+  networkMismatch: boolean;
   connect: () => Promise<string | null>;
   sign: (xdr: string) => Promise<string>;
   error: string | null;
@@ -34,6 +36,7 @@ export function WalletProvider({
 }) {
   const [address, setAddress] = useState<string | null>(null);
   const [available, setAvailable] = useState(false);
+  const [networkMismatch, setNetworkMismatch] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -43,13 +46,20 @@ export function WalletProvider({
       if (!active) return;
       setAvailable(Boolean(connected.isConnected));
       if (!connected.isConnected) return;
-      const current = await getAddress();
-      if (active && current.address) setAddress(current.address);
+      const [current, net] = await Promise.all([
+        getAddress(),
+        getNetworkDetails(),
+      ]);
+      if (!active) return;
+      if (net.networkPassphrase && net.networkPassphrase !== networkPassphrase) {
+        setNetworkMismatch(true);
+      }
+      if (current.address) setAddress(current.address);
     })().catch(() => setAvailable(false));
     return () => {
       active = false;
     };
-  }, []);
+  }, [networkPassphrase]);
 
   const connect = useCallback(async () => {
     setError(null);
@@ -58,9 +68,18 @@ export function WalletProvider({
       setError(String(access.error));
       return null;
     }
+    const net = await getNetworkDetails().catch(() => null);
+    setNetworkMismatch(
+      Boolean(net?.networkPassphrase && net.networkPassphrase !== networkPassphrase),
+    );
     setAddress(access.address);
+    void fetch("/api/users/wallet", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ stellarAddress: access.address }),
+    }).catch(() => {});
     return access.address;
-  }, []);
+  }, [networkPassphrase]);
 
   const sign = useCallback(
     async (xdr: string) => {
@@ -75,7 +94,9 @@ export function WalletProvider({
   );
 
   return (
-    <WalletContext.Provider value={{ address, available, connect, sign, error }}>
+    <WalletContext.Provider
+      value={{ address, available, networkMismatch, connect, sign, error }}
+    >
       {children}
     </WalletContext.Provider>
   );
@@ -88,14 +109,24 @@ export function useWallet(): WalletState {
 }
 
 export function ConnectWalletButton() {
-  const { address, available, connect, error } = useWallet();
-  const { t } = useI18n();
+  const { address, available, networkMismatch, connect, error } = useWallet();
+  const { locale, t } = useI18n();
+  const isEs = locale === "es";
 
   if (address) {
     return (
-      <span className="rounded-card border border-line bg-ok-bg px-3 py-2 font-mono text-xs text-ok-fg">
-        {shorten(address)}
-      </span>
+      <div className="flex flex-col items-end gap-1">
+        <span className="rounded-card border border-line bg-ok-bg px-3 py-1.5 font-mono text-xs font-semibold text-ok-fg">
+          ● {shorten(address)}
+        </span>
+        {networkMismatch && (
+          <span className="text-[11px] font-medium text-warn-fg">
+            {isEs
+              ? "⚠ Cambiá Varial/Freighter a Stellar Testnet"
+              : "⚠ Switch Varial/Freighter to Stellar Testnet"}
+          </span>
+        )}
+      </div>
     );
   }
 

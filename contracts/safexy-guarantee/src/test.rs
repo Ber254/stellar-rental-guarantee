@@ -536,3 +536,56 @@ fn unknown_guarantees_are_reported_as_missing() {
         Err(Ok(Error::NotFound))
     );
 }
+
+#[test]
+fn closing_a_guarantee_with_a_pending_extension_refunds_the_top_up() {
+    let s = setup();
+    s.fund();
+    s.minter.mint(&s.guarantor, &(300 * USDC));
+
+    // Guarantor pre-funds a +300 USDC extension (total 1300).
+    s.client
+        .propose_extension(&ID, &(END_DATE + 86400), &(1300 * USDC));
+    assert_eq!(s.token.balance(&s.guarantor), 0);
+
+    // Before the extension is resolved, the landlord returns the full 1000 locked.
+    s.client.return_to_guarantor(&ID, &AMOUNT);
+
+    let fee = AMOUNT * i128::from(FEE_BPS) / 10_000;
+    // Guarantor receives the 1000 return (net of fee) PLUS the 300 pre-funded top-up back.
+    assert_eq!(s.token.balance(&s.guarantor), (AMOUNT - fee) + 300 * USDC);
+    assert_eq!(s.token.balance(&s.client.address), 0);
+    assert_eq!(s.client.get_guarantee(&ID).state, State::Closed);
+}
+
+#[test]
+fn mutually_appointed_arbiter_can_resolve_dispute_within_locked_balance() {
+    let s = setup();
+    s.fund();
+    let arbiter = Address::generate(&s.env);
+
+    s.client.set_arbiter(&ID, &arbiter);
+    assert_eq!(s.client.get_arbiter(&ID), Some(arbiter.clone()));
+
+    s.client
+        .resolve_dispute(&ID, &(700 * USDC), &(300 * USDC));
+
+    let fee = 700 * USDC * i128::from(FEE_BPS) / 10_000;
+    assert_eq!(s.token.balance(&s.guarantor), 700 * USDC - fee);
+    assert_eq!(s.token.balance(&s.landlord), 300 * USDC);
+    assert_eq!(s.token.balance(&s.treasury), fee);
+    assert_eq!(s.client.get_guarantee(&ID).state, State::Closed);
+}
+
+#[test]
+fn cannot_resolve_dispute_without_appointed_arbiter() {
+    let s = setup();
+    s.fund();
+
+    assert_eq!(
+        s.client
+            .try_resolve_dispute(&ID, &(500 * USDC), &(500 * USDC)),
+        Err(Ok(Error::NotAParty))
+    );
+}
+

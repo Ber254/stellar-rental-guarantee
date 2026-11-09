@@ -1,4 +1,5 @@
 #![no_std]
+#![allow(deprecated)]
 
 //! SAFEXY guarantee escrow.
 //!
@@ -15,7 +16,9 @@
 //! 0.05%) to a configurable treasury address. Payouts to the landlord are not
 //! charged.
 
-use soroban_sdk::{contract, contracterror, contractimpl, contracttype, token, Address, Env};
+use soroban_sdk::{
+    contract, contracterror, contractimpl, contracttype, symbol_short, token, Address, Env,
+};
 
 const DAY_IN_LEDGERS: u32 = 17_280;
 const LIFETIME_THRESHOLD: u32 = DAY_IN_LEDGERS * 30;
@@ -89,6 +92,7 @@ pub enum DataKey {
     Settlement(u64),
     Agreement(u64),
     Extension(u64),
+    Arbiter(u64),
 }
 
 #[contracterror]
@@ -188,6 +192,8 @@ impl SafexyGuaranteeContract {
                 state: State::Pending,
             },
         );
+        env.events()
+            .publish((symbol_short!("safexy"), symbol_short!("created"), id), amount);
         Ok(())
     }
 
@@ -210,6 +216,10 @@ impl SafexyGuaranteeContract {
         guarantee.funded = guarantee.locked;
         guarantee.state = State::Active;
         save(&env, id, &guarantee);
+        env.events().publish(
+            (symbol_short!("safexy"), symbol_short!("funded"), id),
+            guarantee.funded,
+        );
         Ok(())
     }
 
@@ -472,6 +482,61 @@ impl SafexyGuaranteeContract {
     pub fn quote_fee(env: Env, amount: i128) -> Result<i128, Error> {
         Ok(fee_for(config(&env)?.fee_bps, amount))
     }
+
+    /// Both parties may mutually appoint a neutral third-party arbiter (2-of-3
+    /// model) to unlock a deadlocked guarantee without giving custody to Safexy.
+    pub fn set_arbiter(env: Env, id: u64, arbiter: Address) -> Result<(), Error> {
+        let guarantee = load(&env, id)?;
+        guarantee.guarantor.require_auth();
+        guarantee.landlord.require_auth();
+
+        if guarantee.state != State::Pending && guarantee.state != State::Active {
+            return Err(Error::InvalidState);
+        }
+        if arbiter == guarantee.guarantor || arbiter == guarantee.landlord {
+            return Err(Error::NotAParty);
+        }
+
+        let key = DataKey::Arbiter(id);
+        env.storage().persistent().set(&key, &arbiter);
+        extend(&env, &key);
+        env.events()
+            .publish((symbol_short!("safexy"), symbol_short!("arbiter"), id), arbiter);
+        Ok(())
+    }
+
+    pub fn get_arbiter(env: Env, id: u64) -> Option<Address> {
+        env.storage().persistent().get(&DataKey::Arbiter(id))
+    }
+
+    /// The mutually appointed arbiter resolves a deadlocked settlement within
+    /// the locked balance.
+    pub fn resolve_dispute(
+        env: Env,
+        id: u64,
+        to_guarantor: i128,
+        to_landlord: i128,
+    ) -> Result<(), Error> {
+        let guarantee = load(&env, id)?;
+        if guarantee.state != State::Active {
+            return Err(Error::InvalidState);
+        }
+        let arbiter: Address = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Arbiter(id))
+            .ok_or(Error::NotAParty)?;
+        arbiter.require_auth();
+
+        check_amounts(&guarantee, to_guarantor, to_landlord)?;
+        if to_guarantor + to_landlord == 0 {
+            return Err(Error::InvalidAmount);
+        }
+
+        env.storage().persistent().remove(&DataKey::Settlement(id));
+        env.storage().persistent().remove(&DataKey::Agreement(id));
+        pay_out(&env, id, guarantee, to_guarantor, to_landlord)
+    }
 }
 
 /// Writes the balance down first, then transfers: guarantor net of fee,
@@ -488,7 +553,8 @@ fn pay_out(
     let net_to_guarantor = to_guarantor - fee;
 
     guarantee.locked -= to_guarantor + to_landlord;
-    if guarantee.locked == 0 && !env.storage().persistent().has(&DataKey::Extension(id)) {
+    if guarantee.locked == 0 {
+        refund_pending_extension(env, id, &guarantee);
         guarantee.state = State::Closed;
     }
     save(env, id, &guarantee);
@@ -504,6 +570,10 @@ fn pay_out(
     if fee > 0 {
         client.transfer(&contract, &config.treasury, &fee);
     }
+    env.events().publish(
+        (symbol_short!("safexy"), symbol_short!("payout"), id),
+        (to_guarantor, to_landlord, fee, guarantee.locked),
+    );
     Ok(())
 }
 
@@ -573,6 +643,9 @@ fn save(env: &Env, id: u64, guarantee: &Guarantee) {
 }
 
 fn extend(env: &Env, key: &DataKey) {
+    env.storage()
+        .instance()
+        .extend_ttl(LIFETIME_THRESHOLD, BUMP_AMOUNT);
     env.storage()
         .persistent()
         .extend_ttl(key, LIFETIME_THRESHOLD, BUMP_AMOUNT);

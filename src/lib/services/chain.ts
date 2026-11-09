@@ -12,8 +12,10 @@ import {
   proposalActions,
   proposals,
   rentalContracts,
+  type Extension,
   type Guarantee,
   type PartyRole,
+  type Proposal,
   type RentalContract,
   type User,
 } from "@/lib/db/schema";
@@ -95,6 +97,8 @@ type Context = {
   role: PartyRole;
   onChainId: bigint;
   wallet: string;
+  openProposal: Proposal | null;
+  pendingExtension: Extension | null;
 };
 
 export type StepOutcome =
@@ -126,6 +130,10 @@ async function loadContext(user: User, contractId: string): Promise<Context> {
   if (!row.guarantee) throw notFound("Guarantee not found for this contract", "guaranteeNotFound");
 
   const role = roleOf(row.contract, user.id);
+  const [currentProposal, currentExtension] = await Promise.all([
+    openProposal(contractId),
+    pendingExtension(contractId),
+  ]);
   return {
     user,
     contract: row.contract,
@@ -134,6 +142,8 @@ async function loadContext(user: User, contractId: string): Promise<Context> {
     onChainId: BigInt(row.guarantee.onChainId),
     wallet:
       role === "GUARANTOR" ? row.contract.guarantorWallet : (row.contract.landlordWallet ?? ""),
+    openProposal: currentProposal,
+    pendingExtension: currentExtension,
   };
 }
 
@@ -229,11 +239,24 @@ function planStep(ctx: Context, step: ChainStep, payload: StepPayload): () => Co
         });
     }
     case "accept": {
-      if (!inNegotiation) throw badRequest("There is no proposal to accept", "noSettlementToAccept");
+      if (!inNegotiation || !ctx.openProposal) {
+        throw badRequest("There is no proposal to accept", "noSettlementToAccept");
+      }
+      if (ctx.openProposal.proposedBy === ctx.user.id) {
+        throw forbidden("You cannot accept your own proposal", "cannotAcceptOwnProposal");
+      }
+      if (!amountsWithinLocked(ctx.openProposal.toGuarantor, ctx.openProposal.toLandlord, locked)) {
+        throw badRequest(`The split cannot exceed ${formatUsdc(locked)}`, "exceedsLocked");
+      }
       return () => calls.acceptSettlement(onChainId, ctx.wallet);
     }
     case "reject": {
-      if (!inNegotiation) throw badRequest("There is no proposal to reject", "noSettlementToReject");
+      if (!inNegotiation || !ctx.openProposal) {
+        throw badRequest("There is no proposal to reject", "noSettlementToReject");
+      }
+      if (ctx.openProposal.proposedBy === ctx.user.id) {
+        throw forbidden("You cannot reject your own proposal", "cannotRejectOwnProposal");
+      }
       if (!payload.propose?.reason?.trim()) {
         throw badRequest("A reason is required", "reasonRequired");
       }
@@ -274,9 +297,11 @@ function planStep(ctx: Context, step: ChainStep, payload: StepPayload): () => Co
     }
     case "extend-accept": {
       if (role !== "LANDLORD") throw forbidden("Only the landlord can accept an extension", "onlyLandlordAcceptsExtension");
+      if (!ctx.pendingExtension) throw badRequest("There is no extension to accept", "noExtensionPending");
       return () => calls.acceptExtension(onChainId);
     }
     case "extend-cancel": {
+      if (!ctx.pendingExtension) throw badRequest("There is no extension to cancel", "noExtensionPending");
       return () => calls.cancelExtension(onChainId, ctx.wallet);
     }
   }
@@ -478,6 +503,13 @@ async function applyStep(
           .where(eq(agreements.id, agreement.id));
       }
 
+      if (newLocked <= 0n && ctx.pendingExtension) {
+        await db
+          .update(extensions)
+          .set({ status: "CANCELLED", resolvedAt: now })
+          .where(eq(extensions.id, ctx.pendingExtension.id));
+      }
+
       await setStatus(contract, newLocked <= 0n ? "COMPLETED" : restingStatus(contract));
       await notify(other, contract.id, "RETURN_EXECUTED", {
         reference: contract.reference,
@@ -520,6 +552,13 @@ async function applyStep(
           releasedAt: newLocked <= 0n ? now : null,
         })
         .where(eq(guarantees.id, guarantee.id));
+
+      if (newLocked <= 0n && ctx.pendingExtension) {
+        await db
+          .update(extensions)
+          .set({ status: "CANCELLED", resolvedAt: now })
+          .where(eq(extensions.id, ctx.pendingExtension.id));
+      }
 
       await setStatus(contract, newLocked <= 0n ? "COMPLETED" : restingStatus(contract));
       await notify(other, contract.id, "RETURN_UNILATERAL", {

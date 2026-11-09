@@ -69,15 +69,56 @@ export default async function ProfilePage() {
 
       {available !== null ? (
         <Card title={t.profile.availableBalanceReal} description={t.profile.balanceHintReal}>
-          <p className="text-lg font-semibold text-fg">
+          <p className="font-mono text-2xl font-bold text-accent">
             {formatUsdc(fromStroops(available < 0n ? 0n : available))}
           </p>
         </Card>
       ) : (
         <Card title={t.profile.availableBalance} description={t.profile.balanceHint}>
-          <p className="text-lg font-semibold text-fg">{formatUsdc(fromStroops(committed))}</p>
+          <p className="font-mono text-2xl font-bold text-fg">{formatUsdc(fromStroops(committed))}</p>
         </Card>
       )}
+
+      <Card
+        title={
+          locale === "es"
+            ? "Rampa ARS ↔ USDC & Configuración Stellar Testnet"
+            : "ARS ↔ USDC Ramp & Stellar Testnet Setup"
+        }
+        description={
+          locale === "es"
+            ? "Cómo fondear o retirar USDC en Stellar (Anchors SEP-24, Varial Swap y Testnet)."
+            : "How to fund or withdraw USDC on Stellar (SEP-24 Anchors, Varial Swap, and Testnet)."
+        }
+      >
+        <div className="space-y-3 text-xs text-muted">
+          <div className="rounded-lg border border-line/70 bg-surface-muted/50 p-3.5">
+            <p className="font-semibold text-fg">
+              {locale === "es"
+                ? "1. Billetera recomendada: Varial (ex-Freighter)"
+                : "1. Recommended wallet: Varial (formerly Freighter)"}
+            </p>
+            <p className="mt-1">
+              {locale === "es"
+                ? "En producción (Mainnet), podés convertir ARS ↔ USDC mediante Anchors SEP-24 del ecosistema Stellar en Argentina/LATAM o hacer Swap directo XLM ↔ USDC dentro de Varial."
+                : "In production (Mainnet), you can convert local currency ↔ USDC through Stellar SEP-24 Anchors or swap XLM ↔ USDC directly inside Varial."}
+            </p>
+          </div>
+          <div className="rounded-lg border border-line/70 bg-surface-muted/50 p-3.5 font-mono">
+            <p className="font-sans font-semibold text-fg">
+              {locale === "es"
+                ? "2. Parámetros del activo USDC en Stellar Testnet"
+                : "2. USDC Asset Parameters on Stellar Testnet"}
+            </p>
+            <p className="mt-1 break-all">
+              Asset Code: USDC · Issuer: GANGXXPF6NIMUR4CEAFIOCSQH7UMQRCA5SQN6N3NCXOPGMNXNVD5X3HA
+            </p>
+            <p className="mt-1 break-all">
+              USDC SAC: CDSA3RLXVDMZGV6ZWDZY3HKFDJT2ZSEUCHPMG3OQXQUNU5W64XMHCIIO
+            </p>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }

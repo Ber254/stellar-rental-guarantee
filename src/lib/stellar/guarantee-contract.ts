@@ -190,6 +190,9 @@ export function assertMatchesCall(
   if (expectedSource && tx.source !== expectedSource) {
     throw new Error("The signed transaction has an unexpected source account");
   }
+  if (expectedSource && tx.signatures.length === 0) {
+    throw new Error("The transaction has not been signed");
+  }
 
   const envelope = tx.toEnvelope();
   if (envelope.type !== "envelopeTypeTx") {
@@ -236,13 +239,44 @@ export type SubmitResult = {
   returnValue?: unknown;
 };
 
+/**
+ * Wraps a user-signed inner transaction in a FeeBumpTransaction paid by the
+ * platform account so end users can transact in USDC without holding XLM.
+ */
+export function buildFeeBumpXdr(
+  innerSignedXdr: string,
+  sponsorSecret = serverEnv.platformSecretKey(),
+): string {
+  if (!sponsorSecret) {
+    throw new Error("PLATFORM_SECRET_KEY is required for fee sponsorship");
+  }
+  const sponsor = Keypair.fromSecret(sponsorSecret);
+  const passphrase = networkConfig().networkPassphrase;
+  const innerTx = TransactionBuilder.fromXDR(
+    innerSignedXdr,
+    passphrase,
+  ) as Transaction;
+  const feeBump = TransactionBuilder.buildFeeBumpTransaction(
+    sponsor,
+    BASE_FEE,
+    innerTx,
+    passphrase,
+  );
+  feeBump.sign(sponsor);
+  return feeBump.toXDR();
+}
+
 /** Submits an already signed transaction and waits for it to be applied. */
 export async function submitSignedXdr(signedXdr: string): Promise<SubmitResult> {
   const server = rpcServer();
+  const effectiveXdr =
+    process.env.STELLAR_SPONSOR_FEES === "true" && serverEnv.platformSecretKey()
+      ? buildFeeBumpXdr(signedXdr)
+      : signedXdr;
   const tx = TransactionBuilder.fromXDR(
-    signedXdr,
+    effectiveXdr,
     networkConfig().networkPassphrase,
-  ) as Transaction;
+  );
 
   let sent = await server.sendTransaction(tx);
   for (let retry = 0; sent.status === "TRY_AGAIN_LATER" && retry < 3; retry++) {
