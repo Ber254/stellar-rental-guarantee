@@ -223,6 +223,12 @@ function planStep(ctx: Context, step: ChainStep, payload: StepPayload): () => Co
       return () => calls.cancelGuarantee(onChainId, ctx.wallet);
     }
     case "propose": {
+      if (ctx.pendingExtension) {
+        throw badRequest(
+          "Resolve or cancel the pending extension before requesting a return",
+          "extensionAlreadyPending",
+        );
+      }
       const proposal = settlementAmountsSchema.parse(payload.propose);
       if (!amountsWithinLocked(proposal.toGuarantor, proposal.toLandlord, locked)) {
         throw badRequest(`The split cannot exceed ${formatUsdc(locked)}`, "exceedsLocked");
@@ -272,6 +278,12 @@ function planStep(ctx: Context, step: ChainStep, payload: StepPayload): () => Co
       if (role !== "LANDLORD") throw forbidden("Only the landlord can return funds unilaterally", "onlyLandlordReturns");
       if (contract.status !== "ACTIVE" && contract.status !== "EXPIRED") {
         throw badRequest("The guarantee is not active", "notActive");
+      }
+      if (ctx.pendingExtension) {
+        throw badRequest(
+          "Resolve or cancel the pending extension before returning funds",
+          "extensionAlreadyPending",
+        );
       }
       const { amount: returnAmount } = returnUnilateralPayloadSchema.parse(payload.returnUnilateral);
       if (!amountsWithinLocked(returnAmount, "0", locked)) {
@@ -503,7 +515,7 @@ async function applyStep(
           .where(eq(agreements.id, agreement.id));
       }
 
-      if (newLocked <= 0n && ctx.pendingExtension) {
+      if (ctx.pendingExtension) {
         await db
           .update(extensions)
           .set({ status: "CANCELLED", resolvedAt: now })
@@ -553,7 +565,7 @@ async function applyStep(
         })
         .where(eq(guarantees.id, guarantee.id));
 
-      if (newLocked <= 0n && ctx.pendingExtension) {
+      if (ctx.pendingExtension) {
         await db
           .update(extensions)
           .set({ status: "CANCELLED", resolvedAt: now })
@@ -630,6 +642,18 @@ async function applyStep(
           updatedAt: now,
         })
         .where(eq(rentalContracts.id, contract.id));
+
+      if (
+        ctx.openProposal &&
+        toStroops(ctx.openProposal.toGuarantor) +
+          toStroops(ctx.openProposal.toLandlord) >
+          newLocked
+      ) {
+        await db
+          .update(proposals)
+          .set({ status: "SUPERSEDED" })
+          .where(eq(proposals.id, ctx.openProposal.id));
+      }
 
       await setStatus({ ...contract }, newLocked <= 0n ? "COMPLETED" : "ACTIVE");
       await notify(other, contract.id, "EXTENSION_ACCEPTED", {

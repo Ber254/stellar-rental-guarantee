@@ -432,6 +432,27 @@ impl SafexyGuaranteeContract {
         guarantee.locked += extension.top_up;
         guarantee.funded += extension.top_up;
 
+        // Clear any open settlement or agreement that would now exceed the new locked amount.
+        let final_locked = guarantee.locked - refund;
+        if let Some(s) = env
+            .storage()
+            .persistent()
+            .get::<DataKey, Settlement>(&DataKey::Settlement(id))
+        {
+            if s.to_guarantor + s.to_landlord > final_locked {
+                env.storage().persistent().remove(&DataKey::Settlement(id));
+            }
+        }
+        if let Some(a) = env
+            .storage()
+            .persistent()
+            .get::<DataKey, Settlement>(&DataKey::Agreement(id))
+        {
+            if a.to_guarantor + a.to_landlord > final_locked {
+                env.storage().persistent().remove(&DataKey::Agreement(id));
+            }
+        }
+
         if refund > 0 {
             // `pay_out` writes the guarantee, fee included.
             return pay_out(&env, id, guarantee, refund, 0);
@@ -552,9 +573,11 @@ fn pay_out(
     let fee = fee_for(config.fee_bps, to_guarantor);
     let net_to_guarantor = to_guarantor - fee;
 
+    // Any payout alters `locked`, invalidating any still-pending extension delta.
+    refund_pending_extension(env, id, &guarantee);
+
     guarantee.locked -= to_guarantor + to_landlord;
     if guarantee.locked == 0 {
-        refund_pending_extension(env, id, &guarantee);
         guarantee.state = State::Closed;
     }
     save(env, id, &guarantee);
@@ -591,7 +614,7 @@ fn check_amounts(
     to_guarantor: i128,
     to_landlord: i128,
 ) -> Result<(), Error> {
-    if to_guarantor < 0 || to_landlord < 0 {
+    if to_guarantor < 0 || to_landlord < 0 || (to_guarantor == 0 && to_landlord == 0) {
         return Err(Error::InvalidSettlement);
     }
     if to_guarantor + to_landlord > guarantee.locked {

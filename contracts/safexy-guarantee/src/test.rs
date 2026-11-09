@@ -589,3 +589,61 @@ fn cannot_resolve_dispute_without_appointed_arbiter() {
     );
 }
 
+#[test]
+fn partial_return_cancels_and_refunds_any_pending_extension_top_up() {
+    let s = setup();
+    s.fund();
+    s.minter.mint(&s.guarantor, &(200 * USDC));
+
+    // Guarantor proposes +200 USDC extension (total 1200).
+    s.client
+        .propose_extension(&ID, &(END_DATE + 86400), &(1200 * USDC));
+    assert_eq!(s.token.balance(&s.guarantor), 0);
+
+    // Before extension is accepted, landlord makes a partial return of 300 USDC.
+    s.client.return_to_guarantor(&ID, &(300 * USDC));
+
+    let fee = 300 * USDC * i128::from(FEE_BPS) / 10_000;
+    // Pending extension was cancelled and its 200 USDC top-up refunded alongside the 300 return.
+    assert_eq!(s.token.balance(&s.guarantor), (300 * USDC - fee) + 200 * USDC);
+    assert_eq!(s.locked(), 700 * USDC);
+    assert_eq!(
+        s.client.try_get_extension(&ID),
+        Err(Ok(Error::NoExtension))
+    );
+}
+
+#[test]
+fn zero_amount_settlement_proposal_is_rejected() {
+    let s = setup();
+    s.fund();
+
+    assert_eq!(
+        s.client
+            .try_propose_settlement(&ID, &s.guarantor, &0, &0),
+        Err(Ok(Error::InvalidSettlement))
+    );
+}
+
+#[test]
+fn extension_decrease_clears_stale_settlement_above_new_locked() {
+    let s = setup();
+    s.fund();
+
+    // Open proposal for 800/200 (1000 total).
+    s.client
+        .propose_settlement(&ID, &s.guarantor, &(800 * USDC), &(200 * USDC));
+
+    // Extension decreases locked to 600 USDC.
+    s.client
+        .propose_extension(&ID, &(END_DATE + 86400), &(600 * USDC));
+    s.client.accept_extension(&ID);
+
+    assert_eq!(s.locked(), 600 * USDC);
+    assert_eq!(
+        s.client.try_get_settlement(&ID),
+        Err(Ok(Error::NoSettlement))
+    );
+}
+
+

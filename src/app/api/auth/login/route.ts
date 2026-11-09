@@ -5,6 +5,7 @@ import { errorResponse } from "@/lib/api";
 import { createSession, verifyPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { AppError } from "@/lib/services/errors";
 
 const schema = z.object({
@@ -14,6 +15,7 @@ const schema = z.object({
 
 export async function POST(request: Request) {
   try {
+    enforceRateLimit(request, "auth:login", 15, 60_000);
     const input = schema.parse(await request.json());
     const [user] = await db
       .select()

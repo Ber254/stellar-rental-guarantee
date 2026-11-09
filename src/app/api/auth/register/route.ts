@@ -6,6 +6,7 @@ import { errorResponse } from "@/lib/api";
 import { createSession, hashPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { badRequest, conflict } from "@/lib/services/errors";
 
 const schema = z.object({
@@ -23,6 +24,7 @@ const schema = z.object({
 
 export async function POST(request: Request) {
   try {
+    enforceRateLimit(request, "auth:register", 10, 60_000);
     const input = schema.parse(await request.json());
     const email = input.email.toLowerCase();
     const alias = normalizeAlias(input.alias);

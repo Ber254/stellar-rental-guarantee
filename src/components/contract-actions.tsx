@@ -350,7 +350,7 @@ export function ContractActions({
             </div>
             {status === "EXPIRED" && <Alert tone="warning">{t.actions.expired}</Alert>}
 
-            {role === "GUARANTOR" && (
+            {role === "GUARANTOR" && !pendingExtension && (
               <div className="space-y-3 rounded-card border border-line bg-surface-muted/50 p-4">
                 <div>
                   <p className="text-sm font-semibold text-fg">{t.actions.requestReturnTitle}</p>
@@ -420,7 +420,7 @@ export function ContractActions({
               </div>
             )}
 
-            {role === "LANDLORD" && (
+            {role === "LANDLORD" && !pendingExtension && (
               <div className="space-y-3 rounded-card border border-line bg-surface-muted/50 p-4">
                 <div>
                   <p className="text-sm font-semibold text-fg">{t.actions.returnUnilateralTitle}</p>

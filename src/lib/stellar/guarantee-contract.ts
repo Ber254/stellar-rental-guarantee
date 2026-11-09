@@ -228,8 +228,22 @@ export function assertMatchesCall(
     args.every(
       (arg, index) => arg.toXdr("base64") === call.args[index].toXdr("base64"),
     );
-  if (!matches) {
+  if ( !matches ) {
     throw new Error("The signed transaction has unexpected arguments");
+  }
+
+  for (const entry of body.invokeHostFunctionOp.auth) {
+    const fn = entry.rootInvocation.function;
+    if (fn.type === "sorobanAuthorizedFunctionTypeContractFn") {
+      const authContractId = Address.fromScAddress(
+        fn.contractFn.contractAddress,
+      ).toString();
+      if (authContractId !== networkConfig().guaranteeContractId) {
+        throw new Error(
+          "The signed transaction authorizes an unexpected contract",
+        );
+      }
+    }
   }
 }
 

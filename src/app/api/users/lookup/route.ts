@@ -1,9 +1,11 @@
 import { errorResponse } from "@/lib/api";
 import { requireUser } from "@/lib/auth";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { lookupByAlias } from "@/lib/services/contracts";
 
 export async function GET(request: Request) {
   try {
+    enforceRateLimit(request, "users:lookup", 40, 60_000);
     await requireUser();
     const alias = new URL(request.url).searchParams.get("alias") ?? "";
     const user = await lookupByAlias(alias);
