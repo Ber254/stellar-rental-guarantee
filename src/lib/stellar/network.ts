@@ -20,18 +20,17 @@ export function rpcServer(): rpc.Server {
   return cached;
 }
 
+function explorerNetworkSegment(): "public" | "testnet" {
+  const network = serverEnv.stellarNetwork().toLowerCase();
+  return network === "public" || network === "mainnet" ? "public" : "testnet";
+}
+
 export function explorerTxUrl(hash: string): string {
-  const network = serverEnv.stellarNetwork();
-  return `https://stellar.expert/explorer/${
-    network === "public" ? "public" : "testnet"
-  }/tx/${hash}`;
+  return `https://stellar.expert/explorer/${explorerNetworkSegment()}/tx/${hash}`;
 }
 
 export function explorerAccountUrl(address: string): string {
-  const network = serverEnv.stellarNetwork();
-  return `https://stellar.expert/explorer/${
-    network === "public" ? "public" : "testnet"
-  }/account/${address}`;
+  return `https://stellar.expert/explorer/${explorerNetworkSegment()}/account/${address}`;
 }
 
 export function shortenAddress(address: string, size = 4): string {

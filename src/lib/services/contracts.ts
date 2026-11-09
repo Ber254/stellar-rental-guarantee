@@ -17,6 +17,7 @@ import {
   properties,
   proposals,
   rentalContracts,
+  userAliasHistory,
   users,
   type ContractStatus,
   type PartyRole,
@@ -74,18 +75,35 @@ export async function lookupByAlias(alias: string) {
   if (!isValidAlias(normalized)) {
     throw badRequest("That alias is not valid", "invalidAlias");
   }
+  const selectFields = {
+    id: users.id,
+    alias: users.alias,
+    name: users.name,
+    lastName: users.lastName,
+    photoUrl: users.photoUrl,
+  };
   const [user] = await db
-    .select({
-      id: users.id,
-      alias: users.alias,
-      name: users.name,
-      lastName: users.lastName,
-      photoUrl: users.photoUrl,
-    })
+    .select(selectFields)
     .from(users)
     .where(eq(users.alias, normalized));
-  if (!user) throw notFound("No user with that alias", "aliasNotFound");
-  return user;
+  if (user) return user;
+
+  // Fallback to historical alias so old shared links still resolve the user.
+  const [historical] = await db
+    .select({ userId: userAliasHistory.userId })
+    .from(userAliasHistory)
+    .where(eq(userAliasHistory.alias, normalized))
+    .orderBy(desc(userAliasHistory.changedAt))
+    .limit(1);
+  if (historical) {
+    const [current] = await db
+      .select(selectFields)
+      .from(users)
+      .where(eq(users.id, historical.userId));
+    if (current) return current;
+  }
+
+  throw notFound("No user with that alias", "aliasNotFound");
 }
 
 export async function createRentalContract(

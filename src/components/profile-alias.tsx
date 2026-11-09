@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { apiErrorMessage } from "@/lib/i18n";
 import { useI18n } from "./i18n-provider";
 import { Alert, Button, Field, Input } from "./ui";
 
@@ -48,7 +49,7 @@ export function ProfileAlias({ alias }: { alias: string | null }) {
     setSaving(false);
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      setError(body.error ?? t.actions.failed);
+      setError(apiErrorMessage(t, body, t.actions.failed));
       return;
     }
     setEditing(false);
