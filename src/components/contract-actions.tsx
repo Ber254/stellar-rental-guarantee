@@ -28,6 +28,8 @@ type PendingExtension = {
 type EditableDefaults = {
   guaranteeAmount: string;
   rentAmount: string;
+  agencyFeeAmount: string;
+  agencyFeeLabel: string;
   startDate: string;
   endDate: string;
   notes: string;
@@ -285,6 +287,19 @@ export function ContractActions({
                     inputMode="decimal"
                     value={edit.rentAmount}
                     onChange={(event) => setEdit({ ...edit, rentAmount: event.target.value })}
+                  />
+                </Field>
+                <Field label={t.newContract.agencyFeeAmount}>
+                  <Input
+                    inputMode="decimal"
+                    value={edit.agencyFeeAmount}
+                    onChange={(event) => setEdit({ ...edit, agencyFeeAmount: event.target.value })}
+                  />
+                </Field>
+                <Field label={t.newContract.agencyFeeLabel}>
+                  <Input
+                    value={edit.agencyFeeLabel}
+                    onChange={(event) => setEdit({ ...edit, agencyFeeLabel: event.target.value })}
                   />
                 </Field>
                 <Field label={t.newContract.startDate}>

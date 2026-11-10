@@ -45,6 +45,12 @@ export const createContractSchema = z
       .regex(/^\d+(\.\d{1,7})?$/)
       .optional()
       .or(z.literal("")),
+    agencyFeeAmount: z
+      .string()
+      .regex(/^\d+(\.\d{1,7})?$/)
+      .optional()
+      .or(z.literal("")),
+    agencyFeeLabel: z.string().max(120).optional().or(z.literal("")),
     startDate: z.iso.date(),
     endDate: z.iso.date(),
     notes: z.string().max(2000).optional().or(z.literal("")),
@@ -148,6 +154,8 @@ export async function createRentalContract(
       landlordWallet: landlordRow?.stellarAddress ?? null,
       guaranteeAmount: input.guaranteeAmount,
       rentAmount: input.rentAmount || null,
+      agencyFeeAmount: input.agencyFeeAmount || null,
+      agencyFeeLabel: input.agencyFeeLabel || null,
       startDate: new Date(input.startDate),
       endDate: new Date(input.endDate),
       notes: input.notes || null,
@@ -191,6 +199,12 @@ export const updateContractSchema = z
       .regex(/^\d+(\.\d{1,7})?$/)
       .optional()
       .or(z.literal("")),
+    agencyFeeAmount: z
+      .string()
+      .regex(/^\d+(\.\d{1,7})?$/)
+      .optional()
+      .or(z.literal("")),
+    agencyFeeLabel: z.string().max(120).optional().or(z.literal("")),
     startDate: z.iso.date(),
     endDate: z.iso.date(),
     notes: z.string().max(2000).optional().or(z.literal("")),
@@ -243,6 +257,12 @@ export async function updatePendingContract(
     .set({
       guaranteeAmount: input.guaranteeAmount,
       rentAmount: input.rentAmount || null,
+      ...(input.agencyFeeAmount !== undefined
+        ? { agencyFeeAmount: input.agencyFeeAmount || null }
+        : {}),
+      ...(input.agencyFeeLabel !== undefined
+        ? { agencyFeeLabel: input.agencyFeeLabel || null }
+        : {}),
       startDate: new Date(input.startDate),
       endDate: new Date(input.endDate),
       notes: input.notes || null,

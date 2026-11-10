@@ -23,6 +23,18 @@ Redondeo: la comisión se calcula en stroops (7 decimales) y se redondea **hacia
 arriba** al stroop; el neto es `devuelto − comisión`, de modo que la suma
 distribuida siempre iguala el monto liberado.
 
+## Honorario de gestión inmobiliaria (fuera del escrow)
+
+Para que el corredor inmobiliario tenga un incentivo real, cada garantía puede
+llevar un **honorario de gestión** declarado por la inmobiliaria:
+
+- Es un dato **informativo**: se muestra en la ficha de la garantía y en el
+  Certificado PDF, y viaja en el link/QR de solicitud pre-cargada (`agencyFee`).
+- **No pasa por el escrow.** Safexy no lo cobra, no lo custodia y no lo
+  distribuye: lo factura la inmobiliaria por su propia gestión.
+- No altera ningún invariante del contrato: `locked` y `funded` siguen siendo
+  exclusivamente el monto de la garantía.
+
 ## Expiración por falta de aceptación
 
 Si una garantía sigue pendiente **más de un mes después del inicio del período**:

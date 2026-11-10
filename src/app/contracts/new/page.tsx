@@ -25,6 +25,8 @@ export default async function NewContractPage({
           rentAmount: pick("rent"),
           propertyLabel: pick("property"),
           propertyAddress: pick("address"),
+          agencyFeeAmount: pick("agencyFee"),
+          agencyFeeLabel: pick("agencyLabel"),
         }}
       />
     </WalletProvider>

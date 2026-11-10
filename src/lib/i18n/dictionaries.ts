@@ -172,6 +172,11 @@ export const es = {
     walletHint: "Clave pública de Stellar, empieza con G",
     guaranteeAmount: "Monto de la garantía (USDC)",
     rentAmount: "Alquiler mensual (opcional)",
+    agencyFeeAmount: "Honorario de gestión inmobiliaria (opcional)",
+    agencyFeeHint:
+      "Lo cobra la inmobiliaria por fuera del escrow. Safexy no custodia ni mueve este monto.",
+    agencyFeeLabel: "Concepto / inmobiliaria (opcional)",
+    agencyFeeLabelPlaceholder: "Ej. Gestión Inmobiliaria Sur",
     startDate: "Fecha de inicio",
     endDate: "Fecha de fin",
     notes: "Notas (opcional)",
@@ -558,6 +563,11 @@ export const en: Dictionary = {
     walletHint: "Stellar public key, starts with G",
     guaranteeAmount: "Guarantee amount (USDC)",
     rentAmount: "Monthly rent (optional)",
+    agencyFeeAmount: "Real-estate management fee (optional)",
+    agencyFeeHint:
+      "Charged by the agency outside the escrow. Safexy never custodies or moves this amount.",
+    agencyFeeLabel: "Concept / agency (optional)",
+    agencyFeeLabelPlaceholder: "e.g. South Realty Management",
     startDate: "Start date",
     endDate: "End date",
     notes: "Notes (optional)",

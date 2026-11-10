@@ -249,7 +249,7 @@ describe.skipIf(!dbAvailable)("settlement flows (integration)", () => {
     expect(detail.contract.status).toBe("CANCELLED");
   });
 
-  it("charges the 0.05% fee only on what the guarantor receives", async () => {
+  it("charges the 0.5% fee only on what the guarantor receives", async () => {
     const guarantor = await makeUser("guarantor");
     const landlord = await makeUser("landlord");
 
@@ -273,6 +273,32 @@ describe.skipIf(!dbAvailable)("settlement flows (integration)", () => {
       .select()
       .from(schema.agreements)
       .where(eq(schema.agreements.contractId, created.id));
-    expect(agreement.feeAmount).toBe("0.5000000");
+    expect(agreement.feeAmount).toBe("5.0000000");
+  });
+
+  it("keeps the real-estate agency fee as informational data outside the escrow", async () => {
+    const guarantor = await makeUser("guarantor");
+    const landlord = await makeUser("landlord");
+
+    const created = await contracts.createRentalContract(guarantor, {
+      landlordAlias: landlord.alias!,
+      guarantorWallet: WALLET_A,
+      guaranteeAmount: "1000",
+      rentAmount: "900",
+      agencyFeeAmount: "75",
+      agencyFeeLabel: "Gestión Inmobiliaria Sur",
+      startDate: "2026-01-01",
+      endDate: "2026-12-31",
+    });
+    await contracts.acceptContract(landlord, created.id);
+    await chain.startStep(guarantor, created.id, "create");
+    await chain.startStep(guarantor, created.id, "fund");
+
+    const detail = await contracts.getContractDetail(created.id, guarantor.id);
+    expect(detail.contract.agencyFeeAmount).toBe("75.0000000");
+    expect(detail.contract.agencyFeeLabel).toBe("Gestión Inmobiliaria Sur");
+    // The agency fee is never part of the escrowed / locked amount.
+    expect(detail.guarantee?.lockedAmount).toBe("1000.0000000");
+    expect(detail.guarantee?.fundedAmount).toBe("1000.0000000");
   });
 });

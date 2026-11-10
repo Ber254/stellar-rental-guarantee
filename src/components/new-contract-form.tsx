@@ -22,6 +22,8 @@ type Prefill = {
   rentAmount?: string;
   propertyLabel?: string;
   propertyAddress?: string;
+  agencyFeeAmount?: string;
+  agencyFeeLabel?: string;
 };
 
 export function NewContractForm({
@@ -175,6 +177,24 @@ export function NewContractForm({
             inputMode="decimal"
             defaultValue={prefill?.rentAmount ?? ""}
             placeholder="850"
+          />
+        </Field>
+        <Field
+          label={t.newContract.agencyFeeAmount}
+          hint={t.newContract.agencyFeeHint}
+        >
+          <Input
+            name="agencyFeeAmount"
+            inputMode="decimal"
+            defaultValue={prefill?.agencyFeeAmount ?? ""}
+            placeholder="50"
+          />
+        </Field>
+        <Field label={t.newContract.agencyFeeLabel}>
+          <Input
+            name="agencyFeeLabel"
+            defaultValue={prefill?.agencyFeeLabel ?? ""}
+            placeholder={t.newContract.agencyFeeLabelPlaceholder}
           />
         </Field>
         <Field label={t.newContract.startDate}>

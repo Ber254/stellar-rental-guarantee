@@ -209,6 +209,21 @@ export default async function ContractPage({
             {contract.rentAmount && (
               <Row label={t.contract.rent} value={formatUsdc(contract.rentAmount)} />
             )}
+            {contract.agencyFeeAmount && (
+              <Row
+                label={
+                  isEs
+                    ? "Honorario de gestión (fuera del escrow)"
+                    : "Management fee (outside escrow)"
+                }
+                value={
+                  <span>
+                    {formatUsdc(contract.agencyFeeAmount)}
+                    {contract.agencyFeeLabel ? ` · ${contract.agencyFeeLabel}` : ""}
+                  </span>
+                }
+              />
+            )}
             <Row
               label={t.contract.lease}
               value={`${formatDate(contract.startDate)} → ${formatDate(contract.endDate)}`}
@@ -276,6 +291,8 @@ export default async function ContractPage({
             editableDefaults={{
               guaranteeAmount: contract.guaranteeAmount,
               rentAmount: contract.rentAmount ?? "",
+              agencyFeeAmount: contract.agencyFeeAmount ?? "",
+              agencyFeeLabel: contract.agencyFeeLabel ?? "",
               startDate: formatDate(contract.startDate),
               endDate: formatDate(contract.endDate),
               notes: contract.notes ?? "",

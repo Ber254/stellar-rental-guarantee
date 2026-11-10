@@ -168,6 +168,15 @@ export const rentalContracts = pgTable(
       scale: 7,
     }).notNull(),
     rentAmount: numeric("rent_amount", { precision: 20, scale: 7 }),
+    /**
+     * Real-estate agency management fee. It is informational only: the agency
+     * bills it outside the escrow, Safexy never custodies or moves this money.
+     */
+    agencyFeeAmount: numeric("agency_fee_amount", {
+      precision: 20,
+      scale: 7,
+    }),
+    agencyFeeLabel: text("agency_fee_label"),
     startDate: timestamp("start_date", { withTimezone: true }).notNull(),
     endDate: timestamp("end_date", { withTimezone: true }).notNull(),
     notes: text("notes"),

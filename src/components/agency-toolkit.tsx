@@ -32,6 +32,8 @@ export function AgencyToolkit({
   const [address, setAddress] = useState("");
   const [amount, setAmount] = useState("1000");
   const [rent, setRent] = useState("850");
+  const [agencyFee, setAgencyFee] = useState("");
+  const [agencyLabel, setAgencyLabel] = useState("");
   const [copied, setCopied] = useState(false);
 
   const origin =
@@ -45,6 +47,8 @@ export function AgencyToolkit({
   if (rent) params.set("rent", rent);
   if (property) params.set("property", property);
   if (address) params.set("address", address);
+  if (agencyFee) params.set("agencyFee", agencyFee);
+  if (agencyLabel) params.set("agencyLabel", agencyLabel);
   const requestUrl = `${origin}/contracts/new?${params.toString()}`;
 
   function exportCsv() {
@@ -158,6 +162,36 @@ export function AgencyToolkit({
                   onChange={(e) => setRent(e.target.value)}
                 />
               </Field>
+              <Field
+                label={
+                  isEs
+                    ? "Tu honorario de gestión (USDC)"
+                    : "Your management fee (USDC)"
+                }
+                hint={
+                  isEs
+                    ? "Lo cobrás vos por fuera del escrow. Safexy no lo cobra ni lo custodia."
+                    : "You bill it yourself outside the escrow. Safexy never charges or holds it."
+                }
+              >
+                <Input
+                  inputMode="decimal"
+                  value={agencyFee}
+                  onChange={(e) => setAgencyFee(e.target.value)}
+                  placeholder="50"
+                />
+              </Field>
+              <Field
+                label={
+                  isEs ? "Concepto / nombre de la inmobiliaria" : "Concept / agency name"
+                }
+              >
+                <Input
+                  value={agencyLabel}
+                  onChange={(e) => setAgencyLabel(e.target.value)}
+                  placeholder={isEs ? "Gestión Inmobiliaria Sur" : "South Realty Management"}
+                />
+              </Field>
               <div className="flex flex-wrap items-center gap-2 pt-1 sm:col-span-2">
                 <Button type="button" onClick={() => void copyLink()}>
                   {copied
@@ -179,6 +213,11 @@ export function AgencyToolkit({
               <span className="font-mono text-[11px] text-muted">
                 @{userAlias} · {amount || "0"} USDC
               </span>
+              {agencyFee && (
+                <span className="font-mono text-[11px] text-accent">
+                  {isEs ? "Gestión" : "Fee"}: {agencyFee} USDC
+                </span>
+              )}
             </div>
           </div>
         </Card>

@@ -126,6 +126,29 @@ export default async function ContractCertificatePage({
           </div>
         </div>
 
+        {contract.agencyFeeAmount && (
+          <div className="mt-4 rounded-lg border border-line bg-surface-muted/50 px-4 py-3 print:border-gray-300 print:bg-gray-50">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted print:text-gray-600">
+              {isEs
+                ? "Honorario de gestión inmobiliaria (fuera del escrow)"
+                : "Real-estate management fee (outside escrow)"}
+            </p>
+            <p className="mt-1 font-mono text-lg font-bold text-fg print:text-black">
+              {formatUsdc(contract.agencyFeeAmount)}
+              {contract.agencyFeeLabel ? (
+                <span className="ml-2 text-xs font-medium text-muted print:text-gray-600">
+                  · {contract.agencyFeeLabel}
+                </span>
+              ) : null}
+            </p>
+            <p className="mt-1 text-[11px] text-muted print:text-gray-600">
+              {isEs
+                ? "Lo cobra la inmobiliaria directamente por su gestión. Safexy no lo cobra ni lo custodia."
+                : "Billed directly by the agency for its management service. Safexy does not charge or custody it."}
+            </p>
+          </div>
+        )}
+
         <div className="mt-6 grid gap-6 border-t border-line pt-6 sm:grid-cols-2">
           <div className="space-y-2 rounded-lg border border-line/70 bg-surface-muted/40 p-4 print:border-gray-300">
             <p className="text-xs font-semibold uppercase tracking-wider text-accent print:text-blue-700">

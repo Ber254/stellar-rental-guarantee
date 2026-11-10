@@ -403,6 +403,26 @@ Estado on-chain verificado tras cada mecánica (`get_guarantee(2026000103)`):
 
 - Creado `MD/VERIFICATION.md` con las 24 transacciones reales firmadas de las tres corridas end-to-end (`2026000101`, `2026000102`, `2026000103`), links directos a `stellar.expert`, estados on-chain, balances de Horizon, logs de ejecución y guía para evaluadores.
 
+## 2026-11-10 — Honorario de gestión inmobiliaria (fuera del escrow)
+
+Pedido de producto de la reunión del 04/11: darle al corredor inmobiliario un
+incentivo propio, en lugar de compartirle centavos de la comisión de Safexy.
+
+- Nueva columna `rental_contracts.agency_fee_amount` (numeric 20,7) y
+  `rental_contracts.agency_fee_label` (texto), migración
+  `drizzle/0003_giant_eternals.sql` + backfill en `scripts/migrate.ts`.
+- `createContractSchema` / `updateContractSchema` aceptan ambos campos como
+  opcionales; se pueden editar sólo antes de la aceptación, igual que el resto.
+- **El honorario no entra al escrow**: Safexy no lo cobra ni lo custodia. Se
+  muestra en la ficha de la garantía, en el Certificado QR/PDF y en el link/QR
+  de solicitud pre-cargada del Modo Inmobiliaria.
+- El Modo Inmobiliaria (`/dashboard`) ahora permite fijar el honorario y el
+  concepto antes de generar el link/QR, para que el corredor lo tenga listo al
+  hablar con el inquilino/garante.
+- Invariante respetado: `locked`/`funded` del contrato Soroban siguen siendo
+  exclusivamente el monto de la garantía (test de integración
+  `keeps the real-estate agency fee as informational data outside the escrow`).
+
 ## 2026-11-10 — Comisión corregida a 0,5 % (mitad del 1 %)
 
 Se corrige el valor de la comisión de plataforma: había quedado tipeada como

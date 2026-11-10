@@ -33,6 +33,10 @@ const APPLIED_CHECKS: { tag: string; sql: string }[] = [
     tag: "0002_notifications_data_kind",
     sql: "select exists(select 1 from information_schema.columns where table_schema='public' and table_name='notifications' and column_name='data') as applied",
   },
+  {
+    tag: "0003_giant_eternals",
+    sql: "select exists(select 1 from information_schema.columns where table_schema='public' and table_name='rental_contracts' and column_name='agency_fee_amount') as applied",
+  },
 ];
 
 async function main() {
