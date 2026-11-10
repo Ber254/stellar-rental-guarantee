@@ -37,7 +37,7 @@ Amounts are in stroops: 7 decimals, so `1 USDC = 10_000_000`.
 ## 3. Escrow contract
 
 The constructor takes the admin, the fee treasury and the fee in basis points
-(`5` = 0.05%).
+(`50` = 0.5%).
 
 ```bash
 cd contracts
@@ -47,7 +47,7 @@ stellar contract deploy \
   --source platform --network testnet \
   -- --admin $(stellar keys address platform) \
      --treasury $(stellar keys address treasury) \
-     --fee_bps 5
+     --fee_bps 50
 # -> SOROBAN_CONTRACT_ID
 ```
 

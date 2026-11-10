@@ -4,6 +4,12 @@
 
 This document consolidates all on-chain evidence, clickable block-explorer links, state transitions, balance verifications, and the step-by-step reviewer walkthrough for **Safexy** on **Stellar Testnet**. Any reviewer or judge can verify every transaction and invariant independently with zero local setup.
 
+> **Nota sobre la comisión:** las corridas on-chain documentadas abajo se ejecutaron con
+> `fee_bps = 5` (0,05 %), que era la configuración vigente en ese momento. A partir del
+> 2026-11-10 la comisión comercial es **0,5 % (`fee_bps = 50`)** en el código y en la UI;
+> el contrato desplegado puede actualizarse con `set_fee_bps(50)` desde la cuenta admin
+> sin redesplegar. La comisión nunca se cobra sobre lo que recibe el locador.
+
 ---
 
 ## 1. Deployed Infrastructure & Public Links

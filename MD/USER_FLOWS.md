@@ -62,7 +62,7 @@ Iniciada por el garante:
 
 1. Elige total o parcial (monto).
 2. El locador recibe la solicitud y acepta o rechaza (rechazo con motivo).
-3. Si acepta: se libera el monto, se descuenta la comisión de 0,05 % y se
+3. Si acepta: se libera el monto, se descuenta la comisión de 0,5 % y se
    registra la operación en Stellar.
 4. Si es parcial, el remanente sigue bloqueado (ver `BUSINESS_RULES.md`).
 

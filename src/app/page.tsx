@@ -24,8 +24,8 @@ export default async function Home() {
             </div>
             <span className="text-xs font-medium text-muted">
               {isEs
-                ? "Escrow no custodial en Stellar · USDC · 0,05% comisión"
-                : "Non-custodial escrow on Stellar · USDC · 0.05% fee"}
+                ? "Escrow no custodial en Stellar · USDC · 0,5% comisión"
+                : "Non-custodial escrow on Stellar · USDC · 0.5% fee"}
             </span>
           </div>
 
@@ -66,7 +66,7 @@ export default async function Home() {
               </p>
             </div>
             <div>
-              <p className="font-mono text-base font-bold text-fg">0,05%</p>
+              <p className="font-mono text-base font-bold text-fg">0,5%</p>
               <p className="text-muted">
                 {isEs ? "Sólo sobre monto devuelto" : "Only on returned amount"}
               </p>

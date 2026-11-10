@@ -46,10 +46,16 @@ devoluciones parciales.
 
 ## Comisión
 
-0,05 % (`fee_bps = 5`, denominador 10 000) sobre el monto efectivamente devuelto
+0,5 % (`fee_bps = 50`, denominador 10 000) sobre el monto efectivamente devuelto
 al garante, redondeado hacia arriba al stroop, enviado a `treasury`. No se cobra
 sobre lo que recibe el locador. Tesorería y porcentaje son configurables por el
 admin sin redesplegar (tope 5 %).
+
+> Nota: los primeros despliegues de testnet usaron `fee_bps = 5` (0,05 %). El
+> 2026-11-10 se fijó la comisión comercial en **0,5 % (`fee_bps = 50`)**, que es
+> la que aplica el código actual (`src/lib/business-rules.ts`). El contrato ya
+> desplegado puede actualizarse con `set_fee_bps(50)` desde la cuenta admin, sin
+> necesidad de redesplegar.
 
 ## Redeployment v2
 
@@ -95,7 +101,8 @@ acordada y ejecutada → 299,85 USDC al garante, 0,15 USDC a la tesorería y
     disminución) contra un Postgres real en modo simulado. **Hecho también
     contra el contrato desplegado en testnet**:
     - 2026-10-03 (`SFX-2026-000101`, on-chain `2026000101`): split final 850/150
-      y comisión de 0,05 % confirmados en balances reales.
+      y comisión de 0,05 % (config vigente en ese momento) confirmados en balances
+      reales.
     - 2026-11-08 — Semana 1 Instaward (`SFX-2026-000102`, on-chain `2026000102`):
       **devoluciones parciales sucesivas** con firma de XDR en 2 pasos
       (`startStep` → firma cliente → `completeStep` con `assertMatchesCall`):
@@ -106,7 +113,7 @@ acordada y ejecutada → 299,85 USDC al garante, 0,15 USDC a la tesorería y
       **devolución unilateral del locador** (parcial de 200 USDC → `locked = 400`
       USDC), **extensión con aumento** (`400 → 700` USDC, top-up de +300 USDC,
       `funded = 900` USDC), **extensión con reducción** (`700 → 500` USDC,
-      reembolso de 200 USDC menos comisión de 0,05 %) y **devolución unilateral
+      reembolso de 200 USDC menos comisión de 0,05 % vigente en esa corrida) y **devolución unilateral
       de cierre** (`500` USDC → `locked = 0` USDC, `state = Closed`). Ver
       reporte consolidado en `MD/VERIFICATION.md`.
 2. ~~Actualizar `SOROBAN_CONTRACT_ID` en Vercel al contrato nuevo.~~ Hecho en

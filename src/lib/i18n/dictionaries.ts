@@ -208,7 +208,7 @@ export const es = {
     offChain: "fuera de cadena",
     howItWorks: "¿Cómo funciona?",
     howItWorksBody:
-      "El dinero queda bloqueado en un escrow en Stellar. Ninguna parte puede retirarlo sola: el garante puede pedir la devolución y el locador puede aprobarla, rechazarla o devolver por su cuenta a favor del garante. Al devolver, Safexy cobra 0,05% del monto devuelto.",
+      "El dinero queda bloqueado en un escrow en Stellar. Ninguna parte puede retirarlo sola: el garante puede pedir la devolución y el locador puede aprobarla, rechazarla o devolver por su cuenta a favor del garante. Al devolver, Safexy cobra 0,5% del monto devuelto.",
   },
   actions: {
     title: "Próximo paso",
@@ -242,7 +242,7 @@ export const es = {
     counterOfferLandlord: "Para el locador",
     sendCounter: "Enviar contraoferta",
     agreed: "Acordado: {guarantor} USDC para el garante, {landlord} USDC para el locador.",
-    feePreview: "Comisión de Safexy (0,05%): {fee} USDC · neto {net} USDC",
+    feePreview: "Comisión de Safexy (0,5%): {fee} USDC · neto {net} USDC",
     execute: "Ejecutar y liberar",
     executing: "Liberando…",
     returnUnilateralTitle: "Devolver al garante",
@@ -374,7 +374,7 @@ export const es = {
       },
       {
         q: "¿Cuánto cobra Safexy?",
-        a: "0,05% del monto efectivamente devuelto, sólo al momento de la devolución.",
+        a: "0,5% del monto efectivamente devuelto, sólo al momento de la devolución.",
       },
       {
         q: "¿Qué pasa con mi dinero durante la garantía?",
@@ -594,7 +594,7 @@ export const en: Dictionary = {
     offChain: "off-chain",
     howItWorks: "How it works",
     howItWorksBody:
-      "The money is locked in a Stellar escrow. Neither party can withdraw it alone: the guarantor can request a return and the landlord can approve it, reject it, or return it unilaterally in favor of the guarantor. Safexy charges 0.05% of the amount returned.",
+      "The money is locked in a Stellar escrow. Neither party can withdraw it alone: the guarantor can request a return and the landlord can approve it, reject it, or return it unilaterally in favor of the guarantor. Safexy charges 0.5% of the amount returned.",
   },
   actions: {
     title: "Next step",
@@ -628,7 +628,7 @@ export const en: Dictionary = {
     counterOfferLandlord: "To the landlord",
     sendCounter: "Send counter offer",
     agreed: "Agreed: {guarantor} USDC to the guarantor, {landlord} USDC to the landlord.",
-    feePreview: "Safexy fee (0.05%): {fee} USDC · net {net} USDC",
+    feePreview: "Safexy fee (0.5%): {fee} USDC · net {net} USDC",
     execute: "Execute and release",
     executing: "Releasing…",
     returnUnilateralTitle: "Return to the guarantor",
@@ -759,7 +759,7 @@ export const en: Dictionary = {
       },
       {
         q: "How much does Safexy charge?",
-        a: "0.05% of the amount actually returned, only when it is returned.",
+        a: "0.5% of the amount actually returned, only when it is returned.",
       },
       {
         q: "What happens to my money during the guarantee?",

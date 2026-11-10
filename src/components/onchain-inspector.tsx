@@ -152,7 +152,7 @@ export function OnChainInspector({
           </div>
           <div className="rounded-lg border border-line/70 bg-surface-muted/60 p-3">
             <p className="text-[11px] uppercase tracking-wider text-muted">
-              {isEs ? "Fee Estimado (0,05%)" : "Quoted Fee (0.05%)"}
+              {isEs ? "Fee Estimado (0,5%)" : "Quoted Fee (0.5%)"}
             </p>
             <p className="mt-1 font-mono text-sm font-bold text-fg">
               {formatUsdc(data.onChain.feeQuote)}

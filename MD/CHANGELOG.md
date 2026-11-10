@@ -402,3 +402,28 @@ Estado on-chain verificado tras cada mecánica (`get_guarantee(2026000103)`):
 ### Semana 4 — Reporte consolidado de verificación
 
 - Creado `MD/VERIFICATION.md` con las 24 transacciones reales firmadas de las tres corridas end-to-end (`2026000101`, `2026000102`, `2026000103`), links directos a `stellar.expert`, estados on-chain, balances de Horizon, logs de ejecución y guía para evaluadores.
+
+## 2026-11-10 — Comisión corregida a 0,5 % (mitad del 1 %)
+
+Se corrige el valor de la comisión de plataforma: había quedado tipeada como
+`0,05 %` (5 bps) en lugar de la **mitad del 1 % (`0,5 %` = 50 bps)** que era la
+intención comercial desde el origen del proyecto.
+
+- `src/lib/business-rules.ts`: `FEE_BPS = 50` (0,5 %). Con una devolución de
+  `1.000 USDC` la comisión pasa a **`5,00 USDC`** y el neto a **`995,00 USDC`**.
+- `contracts/safexy-guarantee`: el contrato ya era parametrizable en
+  `fee_bps`; los tests ahora usan `50` (0,5 %) y siguen cubriendo el redondeo
+  hacia arriba al stroop y la regla de cobrar sólo sobre lo devuelto al garante.
+- UI, simulador de costo/rendimiento, textos de i18n (es/en), FAQ, deck y
+  documentación (`BUSINESS_RULES.md`, `BLOCKCHAIN.md`, `FUNDING.md`,
+  `USER_FLOWS.md`, `README.md`, `SMART_CONTRACT.md`, `TESTNET.md`) actualizados
+  a 0,5 %.
+- **Acción operativa pendiente:** el contrato ya desplegado en testnet conserva
+  `fee_bps = 5`; para alinearlo hay que ejecutar `set_fee_bps(50)` desde la
+  cuenta `admin` (`GCE5L7F…MWM7V`). No requiere redesplegar.
+- Las corridas de verificación on-chain previas (`SFX-2026-000101/102/103`) se
+  mantienen tal cual porque documentan lo que realmente ocurrió con la
+  configuración vigente en ese momento (5 bps).
+- Decisión de producto asociada: la comisión de los **corredores inmobiliarios**
+  se cobra aparte, como honorario de gestión propio del corredor, para que el
+  incentivo sea relevante para ellos.

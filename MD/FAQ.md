@@ -39,7 +39,7 @@ extenderla por un período nuevo.
 
 ### ¿Cuánto cuesta?
 
-Cobramos 0,05 % del monto que se devuelve, en el momento de la devolución.
+Cobramos 0,5 % del monto que se devuelve, en el momento de la devolución.
 Sobre 1000 USDC devueltos son 0,50 USDC: recibís 999,50.
 
 ### ¿Dónde está mi dinero mientras tanto?

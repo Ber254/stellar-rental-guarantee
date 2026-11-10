@@ -10,7 +10,7 @@
  *   2) Landlord unilateral partial return of 200 USDC -> 400 USDC remains locked (Active)
  *   3) Extension with amount increase: 400 -> 700 USDC (+300 USDC top-up), new end date 2027-06-30
  *      -> landlord accepts -> funded=900 USDC, locked=700 USDC (Active)
- *   4) Extension with amount decrease: 700 -> 500 USDC (-200 USDC refunded net of 0.05% fee),
+ *   4) Extension with amount decrease: 700 -> 500 USDC (-200 USDC refunded net of the platform fee),
  *      new end date 2027-12-31 -> landlord accepts -> funded=900 USDC, locked=500 USDC (Active)
  *   5) Closing landlord unilateral return of remaining 500 USDC -> locked=0 USDC (Closed)
  */

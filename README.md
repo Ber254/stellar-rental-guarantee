@@ -6,7 +6,7 @@ same user can be guarantor in one guarantee and landlord in another. The
 platform custodies nothing, decides nothing and never judges who is right: it
 records what both parties agree to and executes it on Stellar. The escrow
 supports repeated **partial** returns (the remainder stays locked), a
-**0.05% fee** on what is returned, and **extensions** that grow or shrink the
+**0.5% fee** on what is returned, and **extensions** that grow or shrink the
 locked amount.
 
 - Money: USDC on **Stellar testnet** (no custom token, no mainnet in the MVP).

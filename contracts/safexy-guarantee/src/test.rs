@@ -10,7 +10,7 @@ use soroban_sdk::{
 const ID: u64 = 2026000001;
 const USDC: i128 = 10_000_000; // 1 USDC with 7 decimals
 const AMOUNT: i128 = 1000 * USDC;
-const FEE_BPS: u32 = 5; // 0.05%
+const FEE_BPS: u32 = 50; // 0.5%
 const END_DATE: u64 = 1893456000;
 
 struct Setup {
@@ -270,8 +270,8 @@ fn full_return_pays_the_guarantor_net_of_the_fee() {
 
     s.settle(AMOUNT, 0);
 
-    let fee = AMOUNT * i128::from(FEE_BPS) / 10_000; // 0.5 USDC over 1000
-    assert_eq!(fee, USDC / 2);
+    let fee = AMOUNT * i128::from(FEE_BPS) / 10_000; // 5 USDC over 1000
+    assert_eq!(fee, 5 * USDC);
     assert_eq!(s.token.balance(&s.guarantor), AMOUNT - fee);
     assert_eq!(s.token.balance(&s.treasury), fee);
     assert_eq!(s.token.balance(&s.client.address), 0);
@@ -285,7 +285,7 @@ fn a_split_settlement_charges_the_fee_only_on_the_returned_part() {
 
     s.settle(600 * USDC, 400 * USDC);
 
-    let fee = 600 * USDC * i128::from(FEE_BPS) / 10_000; // 0.3 USDC
+    let fee = 600 * USDC * i128::from(FEE_BPS) / 10_000; // 3 USDC
     assert_eq!(s.token.balance(&s.guarantor), 600 * USDC - fee);
     assert_eq!(s.token.balance(&s.landlord), 400 * USDC);
     assert_eq!(s.token.balance(&s.treasury), fee);
@@ -415,8 +415,8 @@ fn extending_with_a_smaller_amount_returns_the_difference_net_of_fee() {
     s.client.accept_extension(&ID);
 
     let refund = 400 * USDC;
-    let fee = refund * i128::from(FEE_BPS) / 10_000; // 0.2 USDC
-    assert_eq!(fee, 2 * USDC / 10);
+    let fee = refund * i128::from(FEE_BPS) / 10_000; // 2 USDC
+    assert_eq!(fee, 2 * USDC);
     assert_eq!(s.token.balance(&s.guarantor), refund - fee);
     assert_eq!(s.token.balance(&s.treasury), fee);
 

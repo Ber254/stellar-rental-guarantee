@@ -53,7 +53,7 @@ transacción real en stellar.expert.*
 
 ## Slide 6 — Cómo funciona el negocio
 
-- **0,05 %** sobre cada devolución al garante, cobrado on-chain.
+- **0,5 %** sobre cada devolución al garante, cobrado on-chain.
 - Configurable por el admin (tope 5 %) sin redesplegar.
 - Costo marginal por garantía casi nulo.
 

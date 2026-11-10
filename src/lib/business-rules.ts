@@ -5,8 +5,8 @@ import { toStroops, fromStroops } from "@/lib/money";
  * or a service. See MD/BUSINESS_RULES.md for the product rationale.
  */
 
-/** 0.05%, i.e. 5 basis points out of 10 000. Matches `fee_bps` on-chain. */
-export const FEE_BPS = 5;
+/** 0.5%, i.e. 50 basis points out of 10 000 (half of 1%). Matches `fee_bps` on-chain. */
+export const FEE_BPS = 50;
 const BPS_DENOMINATOR = 10_000n;
 
 /** Fee (in stroops) charged on a return, rounded up to the stroop. */

@@ -14,7 +14,7 @@ export function YieldCalculator({ locale }: { locale: string }) {
   const months = Math.max(1, Math.min(120, Number(monthsStr) || 12));
   const apy = Math.max(0, Math.min(30, Number(apyStr) || 0));
 
-  const safexyFee = amount * 0.0005;
+  const safexyFee = amount * 0.005;
   const traditionalSuretyCost = amount * 1.5; // ~1.5x monthly deposit sunk cost
   const estimatedYield = amount * (apy / 100) * (months / 12);
   const netGainVsSurety = traditionalSuretyCost - safexyFee + estimatedYield;
@@ -34,8 +34,8 @@ export function YieldCalculator({ locale }: { locale: string }) {
       }
       description={
         isEs
-          ? "Compará cuánto ahorrás bloqueando USDC en un escrow Soroban (0,05% fee) frente a un seguro de caución no reembolsable."
-          : "Compare how much you save locking USDC in a Soroban escrow (0.05% fee) vs. a non-refundable surety bond."
+          ? "Compará cuánto ahorrás bloqueando USDC en un escrow Soroban (0,5% fee) frente a un seguro de caución no reembolsable."
+          : "Compare how much you save locking USDC in a Soroban escrow (0.5% fee) vs. a non-refundable surety bond."
       }
     >
       <div className="grid gap-6 lg:grid-cols-12">
@@ -88,7 +88,7 @@ export function YieldCalculator({ locale }: { locale: string }) {
 
           <div className="rounded-card border border-accent/40 bg-accent/10 p-4">
             <p className="text-xs font-medium text-accent">
-              {isEs ? "Comisión Safexy (0,05%)" : "Safexy Fee (0.05%)"}
+              {isEs ? "Comisión Safexy (0,5%)" : "Safexy Fee (0.5%)"}
             </p>
             <p className="mt-2 font-mono text-xl font-bold text-fg">
               {fmt(safexyFee)} USDC

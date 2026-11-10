@@ -30,7 +30,7 @@ Una billetera de garantías sobre Stellar:
   la plataforma).
 - El **locador** acepta la garantía por alias; el garante la financia.
 - Al terminar el período, se hacen **devoluciones parciales o totales** según
-  lo que ambas partes acuerden, con una comisión de **0,05 %** sólo sobre lo
+  lo que ambas partes acuerden, con una comisión de **0,5 %** sólo sobre lo
   devuelto al garante.
 - **Extensiones** con top-up o devolución de diferencia.
 - Ni el garante ni el locador pueden retirar fondos sin acuerdo (no hay retiro
@@ -74,7 +74,7 @@ On-chain: `funded = 1000`, `locked = 0`, `state = Closed`.
 
 ## Modelo de negocio
 
-- Comisión de **0,05 %** sobre cada devolución al garante (on-chain, vía
+- Comisión de **0,5 %** sobre cada devolución al garante (on-chain, vía
   `fee_bps`, configurable por el admin sin redesplegar, tope 5 %).
 - Costo marginal por garantía casi nulo (Soroban + USDC).
 - Crecimiento por inmobiliarias/plataformas de alquiler que ya manejan depósitos

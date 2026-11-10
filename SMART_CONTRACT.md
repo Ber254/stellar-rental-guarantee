@@ -25,7 +25,7 @@ Set at deploy time through the constructor and mutable by the admin:
 | --- | --- |
 | `admin` | Address allowed to change the config |
 | `treasury` | Destination of the SAFEXY fee |
-| `fee_bps` | Fee in basis points, capped at 500 (5%). SAFEXY uses `5` = 0.05% |
+| `fee_bps` | Fee in basis points, capped at 500 (5%). SAFEXY uses `50` = 0.5% |
 
 The fee applies **only to the amount returned to the guarantor**, never to the
 landlord's share, and is rounded up to the stroop.

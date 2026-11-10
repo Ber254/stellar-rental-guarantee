@@ -12,8 +12,9 @@
 //! landlord grants unilaterally to the guarantor. Every payout decreases
 //! `locked`, so the sum of all payouts can never exceed the funded amount.
 //!
-//! Returns to the guarantor pay a platform fee (`fee_bps`, default 5 bps =
-//! 0.05%) to a configurable treasury address. Payouts to the landlord are not
+//! Returns to the guarantor pay a platform fee (`fee_bps`, configured at
+//! deploy time — Safexy currently uses 50 bps = 0.5%) to a configurable
+//! treasury address. Payouts to the landlord are not
 //! charged.
 
 use soroban_sdk::{

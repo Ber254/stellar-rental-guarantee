@@ -5,7 +5,8 @@ nunca duplicada en componentes o servicios.
 
 ## Comisión
 
-- **0,05 % del valor devuelto**, cobrada en el momento de la devolución.
+- **0,5 % del valor devuelto** (la mitad del 1 %), cobrada en el momento de la
+  devolución.
 - Se aplica sobre el monto que efectivamente se devuelve, no sobre el total de
   la garantía.
 - Configurable centralmente; cualquier cambio se anota en `CHANGELOG.md`.
@@ -14,8 +15,8 @@ Ejemplo:
 
 ```
 Devolución:        1000 USDC
-Comisión (0,05 %):    0,50 USDC
-Neto al usuario:    999,50 USDC
+Comisión (0,5 %):      5,00 USDC
+Neto al usuario:    995,00 USDC
 ```
 
 Redondeo: la comisión se calcula en stroops (7 decimales) y se redondea **hacia
@@ -79,7 +80,7 @@ UI.
 | Contraparte por alias | Por token de invitación en un link | `landlordAlias` resuelve a un `user_id` existente al crear; ya no hay invitación por link | Hecho |
 | Rechazo con motivo | No existe rechazo de la invitación | Estado `REJECTED` + `rejection_reason` obligatorio | Hecho |
 | Expiración automática al mes | No existe | Chequeo perezoso (`applyPendingExpiry`) + `expireStaleContracts` barrida diariamente por `/api/cron/expire` (Vercel Cron) | Hecho |
-| Comisión 0,05 % | No hay comisión | Cobrada on-chain (`fee_bps`) y reflejada off-chain (`agreements.fee_amount`) | Hecho |
+| Comisión 0,5 % | No hay comisión | Cobrada on-chain (`fee_bps = 50`) y reflejada off-chain (`agreements.fee_amount`) | Hecho |
 | Devolución unilateral del locador | Sólo el tenant puede pedir la devolución | `return_to_guarantor` / paso `return-unilateral` | Hecho |
 | Extensión | No existe | `propose_extension`/`accept_extension`/`cancel_extension`, con top-up o devolución de la diferencia | Hecho |
 | Estados humanos | Se muestran estados internos | `t.status[...]` en toda la UI, `STATUSES.md` como fuente de verdad | Hecho |

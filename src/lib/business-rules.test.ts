@@ -8,9 +8,9 @@ import {
 } from "./business-rules";
 
 describe("feeForStroops", () => {
-  it("charges 0.05% rounded up to the stroop", () => {
-    expect(feeForStroops(10_000_000_000n)).toBe(5_000_000n); // 1000 USDC -> 0.5 USDC
-    expect(feeForStroops(4_000_000_000n)).toBe(2_000_000n); // 400 USDC -> 0.2 USDC
+  it("charges 0.5% rounded up to the stroop", () => {
+    expect(feeForStroops(10_000_000_000n)).toBe(50_000_000n); // 1000 USDC -> 5 USDC
+    expect(feeForStroops(4_000_000_000n)).toBe(20_000_000n); // 400 USDC -> 2 USDC
     expect(feeForStroops(1n)).toBe(1n); // rounds up, never charges zero on a positive amount
   });
 
@@ -23,8 +23,8 @@ describe("feeForStroops", () => {
 describe("quoteFeeDecimal", () => {
   it("matches the on-chain rounding for a whole-USDC amount", () => {
     const quote = quoteFeeDecimal("1000");
-    expect(quote.fee).toBe("0.5");
-    expect(quote.net).toBe("999.5");
+    expect(quote.fee).toBe("5");
+    expect(quote.net).toBe("995");
   });
 
   it("never lets the net exceed the returned amount", () => {
