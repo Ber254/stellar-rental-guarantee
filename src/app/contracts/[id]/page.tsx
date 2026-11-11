@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { ContractActions } from "@/components/contract-actions";
 import { EvidenceVerifier } from "@/components/evidence-verifier";
+import { FundingChecklist } from "@/components/funding-checklist";
 import { HowItWorks } from "@/components/how-it-works";
 import { OnChainInspector } from "@/components/onchain-inspector";
 import { Alert, Card, Row, StatusBadge } from "@/components/ui";
@@ -262,7 +263,54 @@ export default async function ContractPage({
           </div>
         </Card>
 
-        <WalletProvider networkPassphrase={networkConfig().networkPassphrase}>
+        {contract.status === "AWAITING_FUNDING" && role === "GUARANTOR" ? (
+          <div className="space-y-6">
+            <FundingChecklist
+              wallet={contract.guarantorWallet}
+              requiredAmount={contract.guaranteeAmount}
+              network={networkConfig().network}
+              locale={locale}
+            />
+            <WalletProvider networkPassphrase={networkConfig().networkPassphrase}>
+              <ContractActions
+                contractId={contract.id}
+                role={role}
+                status={contract.status}
+                landlordName={detail.landlord?.name ?? "—"}
+                locked={locked}
+                escrowRegistered={Boolean(guarantee?.sorobanContractId) || !isChainConfigured()}
+                pendingProposal={
+                  pending
+                    ? {
+                        id: pending.id,
+                        toGuarantor: pending.toGuarantor,
+                        toLandlord: pending.toLandlord,
+                        mine: pending.proposedBy === user.id,
+                      }
+                    : null
+                }
+                pendingExtension={
+                  detail.pendingExtension
+                    ? {
+                        proposedNewAmount: detail.pendingExtension.proposedNewAmount,
+                        proposedNewEndDate: detail.pendingExtension.proposedNewEndDate.toISOString(),
+                      }
+                    : null
+                }
+                editableDefaults={{
+                  guaranteeAmount: contract.guaranteeAmount,
+                  rentAmount: contract.rentAmount ?? "",
+                  agencyFeeAmount: contract.agencyFeeAmount ?? "",
+                  agencyFeeLabel: contract.agencyFeeLabel ?? "",
+                  startDate: formatDate(contract.startDate),
+                  endDate: formatDate(contract.endDate),
+                  notes: contract.notes ?? "",
+                }}
+              />
+            </WalletProvider>
+          </div>
+        ) : (
+          <WalletProvider networkPassphrase={networkConfig().networkPassphrase}>
           <ContractActions
             contractId={contract.id}
             role={role}
@@ -299,6 +347,7 @@ export default async function ContractPage({
             }}
           />
         </WalletProvider>
+        )}
       </div>
 
       {detail.proposals.length > 0 && (

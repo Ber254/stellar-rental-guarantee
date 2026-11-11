@@ -403,6 +403,25 @@ Estado on-chain verificado tras cada mecánica (`get_guarantee(2026000103)`):
 
 - Creado `MD/VERIFICATION.md` con las 24 transacciones reales firmadas de las tres corridas end-to-end (`2026000101`, `2026000102`, `2026000103`), links directos a `stellar.expert`, estados on-chain, balances de Horizon, logs de ejecución y guía para evaluadores.
 
+## 2026-11-11 — Guía "cómo cargar USDC" y chequeo previo al depósito
+
+Pregunta recurrente de los primeros contactos comerciales: *"¿cómo hacen para
+cargar USDC en la garantía?"*. Se agrega soporte explícito en producto:
+
+- Nueva página pública **`/how-to-fund`**: explica en 6 pasos el camino
+  recomendado (comprar USDC en un exchange → retirar **por red Stellar** a la
+  wallet propia → habilitar trustline → bloquear en Safexy), con advertencias
+  sobre red equivocada, memo obligatorio, XLM para comisiones y la regla de que
+  Safexy nunca pide la frase semilla.
+- Nuevo panel **"¿Cómo cargo el USDC de la garantía?"** en la ficha de la
+  garantía (visible para el garante mientras está `AWAITING_FUNDING`): lee
+  Horizon y muestra si la wallet existe, si tiene trustline de USDC, si el saldo
+  alcanza y si tiene XLM para la comisión, con un resumen "todo listo / falta X".
+- `fetchAccountSnapshot` en `src/lib/stellar/network.ts` (cuenta, XLM, USDC,
+  trustline) reutilizado por ese panel.
+- Recordatorio de modelo: el dinero **nunca pasa por Safexy**; el garante firma
+  una transferencia desde su wallet al contrato Soroban.
+
 ## 2026-11-10 — Honorario de gestión inmobiliaria (fuera del escrow)
 
 Pedido de producto de la reunión del 04/11: darle al corredor inmobiliario un

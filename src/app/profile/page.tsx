@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 
 import { Card, Row } from "@/components/ui";
 import { ProfileAlias } from "@/components/profile-alias";
@@ -117,6 +118,14 @@ export default async function ProfilePage() {
               USDC SAC: CDSA3RLXVDMZGV6ZWDZY3HKFDJT2ZSEUCHPMG3OQXQUNU5W64XMHCIIO
             </p>
           </div>
+          <Link
+            href="/how-to-fund"
+            className="inline-flex rounded-card border border-line bg-surface px-3 py-2 text-xs font-semibold text-fg transition hover:border-accent"
+          >
+            {locale === "es"
+              ? "Ver la guía: cómo cargar USDC paso a paso →"
+              : "See the guide: how to load USDC step by step →"}
+          </Link>
         </div>
       </Card>
     </div>
