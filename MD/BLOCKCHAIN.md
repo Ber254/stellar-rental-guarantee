@@ -4,12 +4,14 @@
 
 - Red **Stellar testnet**; RPC `https://soroban-testnet.stellar.org`,
   Horizon `https://horizon-testnet.stellar.org`.
-- Contrato SAFEXY v2 desplegado:
-  `CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV`
-  (fuente en `contracts/safexy-guarantee/`, 27 tests Rust).
+- Contrato SAFEXY v2 desplegado (activo, comisión 0,5 %):
+  `CCR3OY2DAFWFQAWHOI3XCSDRYFENUQKR5RXSLI7FB5JOEWU7S5CPJZ53`
+  (fuente en `contracts/safexy-guarantee/`, 33 tests Rust).
 - Tesorería de comisiones (testnet):
   `GCBM7PFRWJ2OKMPI26FK22ZKBNLR4UUSR76NY52FU2JWOAEV4LNKUZUB`; admin:
-  `GCE5L7F7MMVFCQ3VQL3QWWTHKY6UWB3KO6FL65EDJFD2TL5UE42MWM7V`; `fee_bps = 5`.
+  `GDN67WXNNV6RJIYLBLP5FMP2QOYYID45LSC4ZADQM3ZMTRQ2Y57LUL7J`; `fee_bps = 50`.
+- Contrato anterior (mismo código, `fee_bps = 5`, evidencia de las semanas 1 y
+  2): `CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV`.
 - USDC de prueba: emisor
   `GANGXXPF6NIMUR4CEAFIOCSQH7UMQRCA5SQN6N3NCXOPGMNXNVD5X3HA`,
   SAC `CDSA3RLXVDMZGV6ZWDZY3HKFDJT2ZSEUCHPMG3OQXQUNU5W64XMHCIIO`.
@@ -54,8 +56,26 @@ admin sin redesplegar (tope 5 %).
 > Nota: los primeros despliegues de testnet usaron `fee_bps = 5` (0,05 %). El
 > 2026-11-10 se fijó la comisión comercial en **0,5 % (`fee_bps = 50`)**, que es
 > la que aplica el código actual (`src/lib/business-rules.ts`). El contrato ya
-> desplegado puede actualizarse con `set_fee_bps(50)` desde la cuenta admin, sin
-> necesidad de redesplegar.
+> desplegado no se pudo actualizar con `set_fee_bps(50)` porque la clave de su
+> admin (`GCE5L7F…MWM7V`) no está disponible; el 2026-11-16 se redesplegó el
+> mismo código con `fee_bps = 50` (ver "Redeployment v2.1").
+
+## Redeployment v2.1 (2026-11-16) — comisión 0,5 %
+
+| | Contrato |
+| --- | --- |
+| Anterior | `CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV` (`fee_bps = 5`, admin `GCE5L7F…MWM7V`) |
+| Nuevo | `CCR3OY2DAFWFQAWHOI3XCSDRYFENUQKR5RXSLI7FB5JOEWU7S5CPJZ53` (`fee_bps = 50`, admin `GDN67WX…UL7J`) |
+
+Mismo WASM (hash `69387399d526e9ecf044adaf13efb056e378afcbfa4d229da2a8e3fc1328747a`),
+misma tesorería y mismo USDC. Tx de subida del WASM
+[`f7430b7a…`](https://stellar.expert/explorer/testnet/tx/f7430b7a07b1b4699157da0c5a2a608efc93c5ea239b3cdd3269daf1e26e5355)
+y de despliegue
+[`a80b74f4…`](https://stellar.expert/explorer/testnet/tx/a80b74f4f9671747e27f614916a30490a623ce40cd9343d1c4a179be93fc1443).
+Motivo: alinear la comisión on-chain con la app (0,5 %) sin la clave del admin
+anterior. Las garantías creadas sobre el contrato anterior (`SFX-2026-000101`
+a `000103` y `000201`) quedan como evidencia on-chain en ese contrato; la app
+de Vercel opera sólo sobre el nuevo.
 
 ## Redeployment v2
 

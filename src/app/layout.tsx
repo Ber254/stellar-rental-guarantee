@@ -5,6 +5,7 @@ import { I18nProvider } from "@/components/i18n-provider";
 import { SiteHeader } from "@/components/site-header";
 import { getDictionary } from "@/lib/i18n";
 import { getLocale, getTheme } from "@/lib/i18n/server";
+import { serverEnv } from "@/lib/env";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,6 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const [locale, theme] = await Promise.all([getLocale(), getTheme()]);
+  const contractId = serverEnv.sorobanContractId();
   const dictionary = getDictionary(locale);
 
   return (
@@ -41,14 +43,16 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 sm:px-6">
               <span>Safexy · Non-custodial rental guarantees on Stellar (Soroban + USDC)</span>
               <div className="flex items-center gap-4">
-                <a
-                  href="https://stellar.expert/explorer/testnet/contract/CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-mono hover:text-fg hover:underline"
-                >
-                  Contract CCAT2N5J…76LV ↗
-                </a>
+                {contractId && (
+                  <a
+                    href={`https://stellar.expert/explorer/testnet/contract/${contractId}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-mono hover:text-fg hover:underline"
+                  >
+                    Contract {contractId.slice(0, 8)}…{contractId.slice(-4)} ↗
+                  </a>
+                )}
               </div>
             </div>
           </footer>

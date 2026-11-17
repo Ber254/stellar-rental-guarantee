@@ -70,7 +70,7 @@ monto reducido, sin cambiar el período.
 
 **Resuelto:** implementado como liberación parcial dentro del contrato
 (`contracts/safexy-guarantee`, desplegado en testnet como
-`CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV`). El contrato lleva
+`CCR3OY2DAFWFQAWHOI3XCSDRYFENUQKR5RXSLI7FB5JOEWU7S5CPJZ53`). El contrato lleva
 un saldo `locked` que se descuenta en cada `execute_settlement` o
 `return_to_guarantor`; la garantía sigue `Active` mientras `locked > 0` y pasa
 a `Closed` sólo cuando llega a 0. No hay ciclo cerrar-y-recrear ni

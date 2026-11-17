@@ -33,9 +33,7 @@ export default async function ContractCertificatePage({
     guarantee?.lockedAmount ?? guarantee?.amount ?? contract.guaranteeAmount;
   const cfg = networkConfig();
   const sorobanContractId =
-    guarantee?.sorobanContractId ??
-    cfg.guaranteeContractId ??
-    "CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV";
+    guarantee?.sorobanContractId ?? cfg.guaranteeContractId;
 
   const latestRealTx = detail.transactions.find((tx) => tx.txHash && !tx.simulated);
   const explorerUrl = latestRealTx?.txHash

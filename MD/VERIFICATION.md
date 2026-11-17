@@ -4,11 +4,15 @@
 
 This document consolidates all on-chain evidence, clickable block-explorer links, state transitions, balance verifications, and the step-by-step reviewer walkthrough for **Safexy** on **Stellar Testnet**. Any reviewer or judge can verify every transaction and invariant independently with zero local setup.
 
-> **Nota sobre la comisión:** las corridas on-chain documentadas abajo se ejecutaron con
-> `fee_bps = 5` (0,05 %), que era la configuración vigente en ese momento. A partir del
-> 2026-11-10 la comisión comercial es **0,5 % (`fee_bps = 50`)** en el código y en la UI;
-> el contrato desplegado puede actualizarse con `set_fee_bps(50)` desde la cuenta admin
-> sin redesplegar. La comisión nunca se cobra sobre lo que recibe el locador.
+> **Guía para la revisora, en español y sin jerga:** [`GUIA_REVISORA.md`](GUIA_REVISORA.md).
+>
+> **Nota sobre la comisión:** las corridas 1 a 4 se ejecutaron sobre el contrato
+> `CCAT2N5J…76LV` con `fee_bps = 5` (0,05 %), la configuración vigente en ese momento.
+> La comisión comercial es **0,5 % (`fee_bps = 50`)**. Como la clave del admin de ese
+> contrato no está disponible, el 2026-11-16 se desplegó el mismo código con
+> `fee_bps = 50` en `CCR3OY2D…JZ53`, y la app pública apunta a ese contrato. La corrida 5
+> (todo el ciclo hecho desde la UI pública) usa el contrato nuevo. La comisión nunca se
+> cobra sobre lo que recibe el locador.
 
 ---
 
@@ -18,19 +22,21 @@ This document consolidates all on-chain evidence, clickable block-explorer links
 | --- | --- | --- |
 | **Public Live App (Vercel)** | `https://rental-guarantee-stellar.vercel.app` | [Open Live App](https://rental-guarantee-stellar.vercel.app) |
 | **GitHub Repository (MIT)** | `Ber254/stellar-rental-guarantee` | [Open GitHub Repo](https://github.com/Ber254/stellar-rental-guarantee) |
-| **Soroban Escrow Contract (v2)** | `CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV` | [stellar.expert (Contract)](https://stellar.expert/explorer/testnet/contract/CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV) |
+| **Soroban Escrow Contract (v2.1, live app, `fee_bps = 50`)** | `CCR3OY2DAFWFQAWHOI3XCSDRYFENUQKR5RXSLI7FB5JOEWU7S5CPJZ53` | [stellar.expert (Contract)](https://stellar.expert/explorer/testnet/contract/CCR3OY2DAFWFQAWHOI3XCSDRYFENUQKR5RXSLI7FB5JOEWU7S5CPJZ53) |
+| **Soroban Escrow Contract (v2, Runs 1–4, `fee_bps = 5`)** | `CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV` | [stellar.expert (Contract)](https://stellar.expert/explorer/testnet/contract/CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV) |
 | **Test USDC SAC (Asset Contract)** | `CDSA3RLXVDMZGV6ZWDZY3HKFDJT2ZSEUCHPMG3OQXQUNU5W64XMHCIIO` | [stellar.expert (USDC SAC)](https://stellar.expert/explorer/testnet/contract/CDSA3RLXVDMZGV6ZWDZY3HKFDJT2ZSEUCHPMG3OQXQUNU5W64XMHCIIO) |
 | **Test USDC Issuer** | `GANGXXPF6NIMUR4CEAFIOCSQH7UMQRCA5SQN6N3NCXOPGMNXNVD5X3HA` | [stellar.expert (Issuer)](https://stellar.expert/explorer/testnet/account/GANGXXPF6NIMUR4CEAFIOCSQH7UMQRCA5SQN6N3NCXOPGMNXNVD5X3HA) |
 | **Demo Guarantor Account** (`@alice.guarantor`) | `GDGZ7E2PJZ33M2X7EDDZ65KJCJWQP5QCZWDEBHSBRNHNQRYCGMHXJGBH` | [stellar.expert (Guarantor)](https://stellar.expert/explorer/testnet/account/GDGZ7E2PJZ33M2X7EDDZ65KJCJWQP5QCZWDEBHSBRNHNQRYCGMHXJGBH) |
 | **Demo Landlord Account** (`@bob.landlord`) | `GBYME6KARFMF4GX62SOH6WWJJXBOUKZNBJN3XOPOYQUOG3RGF4A3HX5A` | [stellar.expert (Landlord)](https://stellar.expert/explorer/testnet/account/GBYME6KARFMF4GX62SOH6WWJJXBOUKZNBJN3XOPOYQUOG3RGF4A3HX5A) |
-| **Fee Treasury Account** (`fee_bps = 5` / 0.05%) | `GCBM7PFRWJ2OKMPI26FK22ZKBNLR4UUSR76NY52FU2JWOAEV4LNKUZUB` | [stellar.expert (Treasury)](https://stellar.expert/explorer/testnet/account/GCBM7PFRWJ2OKMPI26FK22ZKBNLR4UUSR76NY52FU2JWOAEV4LNKUZUB) |
-| **Admin Account** | `GCE5L7F7MMVFCQ3VQL3QWWTHKY6UWB3KO6FL65EDJFD2TL5UE42MWM7V` | [stellar.expert (Admin)](https://stellar.expert/explorer/testnet/account/GCE5L7F7MMVFCQ3VQL3QWWTHKY6UWB3KO6FL65EDJFD2TL5UE42MWM7V) |
+| **Fee Treasury Account** (both contracts) | `GCBM7PFRWJ2OKMPI26FK22ZKBNLR4UUSR76NY52FU2JWOAEV4LNKUZUB` | [stellar.expert (Treasury)](https://stellar.expert/explorer/testnet/account/GCBM7PFRWJ2OKMPI26FK22ZKBNLR4UUSR76NY52FU2JWOAEV4LNKUZUB) |
+| **Admin Account (v2.1)** | `GDN67WXNNV6RJIYLBLP5FMP2QOYYID45LSC4ZADQM3ZMTRQ2Y57LUL7J` | [stellar.expert (Admin)](https://stellar.expert/explorer/testnet/account/GDN67WXNNV6RJIYLBLP5FMP2QOYYID45LSC4ZADQM3ZMTRQ2Y57LUL7J) |
+| **Admin Account (v2)** | `GCE5L7F7MMVFCQ3VQL3QWWTHKY6UWB3KO6FL65EDJFD2TL5UE42MWM7V` | [stellar.expert (Admin)](https://stellar.expert/explorer/testnet/account/GCE5L7F7MMVFCQ3VQL3QWWTHKY6UWB3KO6FL65EDJFD2TL5UE42MWM7V) |
 
 ---
 
 ## 2. Reviewer Walkthrough — Driving the Live Testnet Demo via UI (Deliverable 2 / Week 3)
 
-The public deployment at **[https://rental-guarantee-stellar.vercel.app](https://rental-guarantee-stellar.vercel.app)** is connected to the live `safexy-guarantee` Soroban contract on Stellar Testnet (`NEXT_PUBLIC_DEMO_MODE=false`).
+The public deployment at **[https://rental-guarantee-stellar.vercel.app](https://rental-guarantee-stellar.vercel.app)** is connected to the live `safexy-guarantee` Soroban contract `CCR3OY2D…JZ53` on Stellar Testnet (`NEXT_PUBLIC_DEMO_MODE=false`). A plain-language Spanish version of this walkthrough is in [`GUIA_REVISORA.md`](GUIA_REVISORA.md).
 
 To let reviewers complete the entire on-chain lifecycle immediately—without needing to mint custom testnet USDC first—two pre-funded reviewer accounts are available directly on the `/login` screen:
 
@@ -60,11 +66,30 @@ To let reviewers complete the entire on-chain lifecycle immediately—without ne
 5. **Execute Partial Returns, Extensions, or Unilateral Return**:
    - **Partial Return (Negotiated):** As `@alice.guarantor`, request `40` USDC under *"Pedir devolución"*. As `@bob.landlord`, either accept `40/0` or send a partial counter-offer (e.g. `30` to guarantor, `10` to landlord). Once accepted (`AGREED`), click **"Ejecutar y liberar" / "Execute and release"**. Verify that `60 USDC` remains locked and the guarantee stays `ACTIVE`.
    - **Extension (Increase or Decrease):** As `@alice.guarantor`, propose a new total amount (e.g. `80` USDC for a `+20` top-up, or `40` USDC for a `-20` refund) and new end date (`2027-06-30`). As `@bob.landlord`, click **"Aceptar extensión" / "Accept extension"**.
-   - **Landlord Unilateral Return:** As `@bob.landlord`, enter any amount up to the locked balance under *"Devolver al garante"* and click **"Devolver" / "Return"**. Funds are released immediately to the guarantor (net of the `0.05%` fee) without requiring counter-signature.
+   - **Landlord Unilateral Return:** As `@bob.landlord`, enter any amount up to the locked balance under *"Devolver al garante"* and click **"Devolver" / "Return"**. Funds are released immediately to the guarantor (net of the `0.5%` Safexy fee) without requiring counter-signature.
 
-*(Note: Reviewers who wish to test browser-wallet signing with their own account can install **Varial (formerly Freighter)** on Stellar Testnet, register a new user at `/register`, and sign the XDR payloads directly in the browser extension).*
+*(Note: Reviewers who wish to test browser-wallet signing with their own account can install **Freighter** on Stellar Testnet, register a new user at `/register`, and sign the XDR payloads directly in the browser extension).*
 
-### Live Demo Screenshots (`https://rental-guarantee-stellar.vercel.app`)
+### Full UI Run — Screen Recording & Step-by-Step Screenshots (Run 5, 2026-11-16)
+
+The entire lifecycle (create → accept → fund → partial return #1 → partial return #2 → landlord unilateral return → extension increase → extension decrease) was driven **only through the public UI** with the two demo accounts and no browser wallet.
+
+- **Screen recording:** [`screenshots/demo-ui-completo.webm`](screenshots/demo-ui-completo.webm) (opens in any browser).
+- **Screenshots (15):** [`screenshots/ui-run/`](screenshots/ui-run/) — `01-dashboard-garante` … `15-estado-final`.
+
+| Step | Screenshot |
+| --- | --- |
+| Guarantee created by alias | ![Guarantee created by alias](screenshots/ui-run/02-nueva-garantia.png) |
+| Landlord accepts | ![Landlord accepts](screenshots/ui-run/04-locador-acepta.png) |
+| 100 USDC funded and locked | ![100 USDC funded and locked](screenshots/ui-run/05-deposito-bloqueado.png) |
+| Partial return #1 executed (70 locked) | ![Partial return #1 executed (70 locked)](screenshots/ui-run/07-parcial1-ejecutada.png) |
+| Partial return #2 executed (50 locked) | ![Partial return #2 executed (50 locked)](screenshots/ui-run/09-parcial2-ejecutada.png) |
+| Landlord unilateral return (40 locked) | ![Landlord unilateral return (40 locked)](screenshots/ui-run/10-unilateral.png) |
+| Extension increase accepted (60 locked) | ![Extension increase accepted (60 locked)](screenshots/ui-run/12-extension1-aceptada.png) |
+| Extension decrease accepted (30 locked) | ![Extension decrease accepted (30 locked)](screenshots/ui-run/14-extension2-aceptada.png) |
+| Final state with all on-chain activity | ![Final state with all on-chain activity](screenshots/ui-run/15-estado-final.png) |
+
+### Live Demo Screenshots (earlier, `https://rental-guarantee-stellar.vercel.app`)
 
 1. **Landing & How It Works (`/`)**
    ![Home](screenshots/01-home.png)
@@ -85,7 +110,7 @@ To let reviewers complete the entire on-chain lifecycle immediately—without ne
 
 ## 3. Consolidated On-Chain Evidence (Deliverables 1 & 3 / Weeks 1, 2 & 4)
 
-All 29 transactions below were executed as real signed transactions on Stellar Testnet against contract [`CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV`](https://stellar.expert/explorer/testnet/contract/CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV).
+All 42 transactions below were executed as real signed transactions on Stellar Testnet (every hash re-checked as `successful: true` on Horizon on 2026-11-16). Runs 1–4 ran against contract [`CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV`](https://stellar.expert/explorer/testnet/contract/CCAT2N5JSRUO2UJDB7RFSUG2FWUO2X77VJBSVLVTZI2VDZOSOYSH76LV) (`fee_bps = 5`); Run 5 ran against [`CCR3OY2DAFWFQAWHOI3XCSDRYFENUQKR5RXSLI7FB5JOEWU7S5CPJZ53`](https://stellar.expert/explorer/testnet/contract/CCR3OY2DAFWFQAWHOI3XCSDRYFENUQKR5RXSLI7FB5JOEWU7S5CPJZ53) (`fee_bps = 50`).
 
 ---
 
@@ -187,7 +212,36 @@ All 29 transactions below were executed as real signed transactions on Stellar T
 | 5 | Partial #1 — Execute | `execute_settlement(2026000201)` | `82344efa3df6f588b770e6f3055497e4e50936d7fb27a079830e1989a83ecfc6` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/82344efa3df6f588b770e6f3055497e4e50936d7fb27a079830e1989a83ecfc6) |
 
 - **Live UI Link (after 1-click sign-in at `/login`):** `https://rental-guarantee-stellar.vercel.app/contracts/a0eeab82-07d4-4031-9d56-0f44e4533854`
-- **Verified On-Chain State (`get_guarantee(2026000201)`):** `funded = 200 USDC`, **`locked = 150 USDC`**, `state = Active`.
+- **Verified On-Chain State (`get_guarantee(2026000201)`):** `funded = 200 USDC`, **`locked = 150 USDC`**, `state = Active`. *(This guarantee lives on the previous contract; since 2026-11-16 the app points at the v2.1 contract, so it remains as on-chain evidence on stellar.expert.)*
+
+---
+
+### Run 5 (2026-11-16) — Full Lifecycle Driven Only Through the Public UI (`SFX-2026-000204` / On-Chain ID `2026000204`)
+
+- **Contract:** `CCR3OY2DAFWFQAWHOI3XCSDRYFENUQKR5RXSLI7FB5JOEWU7S5CPJZ53` (`fee_bps = 50`, 0.5%).
+- **How:** every step was clicked in `https://rental-guarantee-stellar.vercel.app` with the 1-click reviewer accounts (`@alice.guarantor`, `@bob.landlord`); no scripts calling the contract and no browser wallet. Recording: [`screenshots/demo-ui-completo.webm`](screenshots/demo-ui-completo.webm).
+- **Scenario:** `100 USDC` funded → partial return `30` → partial return `20` → landlord unilateral return `10` → extension increase to `60 USDC` (`+20` top-up, end date `2027-08-31`) → extension decrease to `30 USDC` (`-30` refund, end date `2027-11-30`). The guarantee is left `Active` with `30 USDC` locked so reviewers can keep interacting with it.
+- **Live UI link (after 1-click sign-in):** `https://rental-guarantee-stellar.vercel.app/contracts/7df2af1a-c001-415a-a464-a3a29d5b26d1`
+
+| # | Step | Soroban Invocation | Transaction Hash | Explorer Link |
+| --- | --- | --- | --- | --- |
+| 1 | Create | `create_guarantee(2026000204, 100 USDC)` | `8ea9346b155e05baa1cd9baa862c18748e75c0b82ae673850b298594b20b60d6` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/8ea9346b155e05baa1cd9baa862c18748e75c0b82ae673850b298594b20b60d6) |
+| 2 | Fund | `fund_guarantee(2026000204)` | `ac9e9e36dc9913ff69bdc1bf931394feb765cc9f39e2538ee10e91d6031440eb` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/ac9e9e36dc9913ff69bdc1bf931394feb765cc9f39e2538ee10e91d6031440eb) |
+| 3 | Partial #1 — Propose | `propose_settlement(30 / 0)` | `5144e4926764ada9ca48977b1d999cdd0f8d595ab2c725f078660739cccf112f` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/5144e4926764ada9ca48977b1d999cdd0f8d595ab2c725f078660739cccf112f) |
+| 4 | Partial #1 — Accept | `accept_settlement(2026000204)` | `12b5d269d24047a7c6eb302739bace4caae3ba0271cac2c3e1418e2b0dd7f118` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/12b5d269d24047a7c6eb302739bace4caae3ba0271cac2c3e1418e2b0dd7f118) |
+| 5 | Partial #1 — Execute | `execute_settlement(2026000204)` | `99c01353c89c4ca7adc21036da1b2048f8d34df1e3b445cde026faae2693f9af` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/99c01353c89c4ca7adc21036da1b2048f8d34df1e3b445cde026faae2693f9af) |
+| 6 | Partial #2 — Propose | `propose_settlement(20 / 0)` | `c16ced3e33504de40a25717aec1bcdd653d0bd35266d3bd1e813a04db91d522f` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/c16ced3e33504de40a25717aec1bcdd653d0bd35266d3bd1e813a04db91d522f) |
+| 7 | Partial #2 — Accept | `accept_settlement(2026000204)` | `56db82bcd9fc66fdcd489851293eeaaf0e1cfc3a750f494cbb66bf9e0d3af170` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/56db82bcd9fc66fdcd489851293eeaaf0e1cfc3a750f494cbb66bf9e0d3af170) |
+| 8 | Partial #2 — Execute | `execute_settlement(2026000204)` | `7d3779db5baf02a4462c6c235e36a7b95c10fc2f7f17f882d78fe3980a62791c` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/7d3779db5baf02a4462c6c235e36a7b95c10fc2f7f17f882d78fe3980a62791c) |
+| 9 | Unilateral Return | `return_to_guarantor(2026000204, 10 USDC)` | `3dc37ce3009077c084c657c334869d325a6c95d5df9ea68e731fd035c72510af` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/3dc37ce3009077c084c657c334869d325a6c95d5df9ea68e731fd035c72510af) |
+| 10 | Extension Increase — Propose | `propose_extension(2026000204, 2027-08-31, 60 USDC)` | `16866de91c2411f8d7485a4379d57b03822f51b8353ddc648906498b42c918ce` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/16866de91c2411f8d7485a4379d57b03822f51b8353ddc648906498b42c918ce) |
+| 11 | Extension Increase — Accept | `accept_extension(2026000204)` | `bb4d2aceea5e6fa8419396ecae63ddd1f3009dd62dac6765c4b378d817ba0a8d` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/bb4d2aceea5e6fa8419396ecae63ddd1f3009dd62dac6765c4b378d817ba0a8d) |
+| 12 | Extension Decrease — Propose | `propose_extension(2026000204, 2027-11-30, 30 USDC)` | `7afc5694d73a06db186e3e9efac63f65fef9daf9d7c83f7e69861f7600195397` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/7afc5694d73a06db186e3e9efac63f65fef9daf9d7c83f7e69861f7600195397) |
+| 13 | Extension Decrease — Accept | `accept_extension(2026000204)` | `dbfee3fb2e7cd6b63c27e5782296a6c7312e564eb0004568534d07e9fd7a5d1e` | [stellar.expert](https://stellar.expert/explorer/testnet/tx/dbfee3fb2e7cd6b63c27e5782296a6c7312e564eb0004568534d07e9fd7a5d1e) |
+
+- **Verified On-Chain State (`get_guarantee(2026000204)`):** `funded = 120 USDC` (100 + 20 top-up), **`locked = 30 USDC`**, `state = Active`, `end_date = 1827532800` (`2027-11-30`).
+- **Locked balance progression (UI and chain):** `100 → 70 → 50 → 40 → 60 → 30 USDC`; total returned to the guarantor `90 USDC` (`30 + 20 + 10 + 30`), never more than funded (no double release).
+- **Fee math (0.5% only on what returns to the guarantor):** `0.15 + 0.10 + 0.05 + 0.15 = 0.45 USDC`. Treasury USDC balance on Horizon went from `1.75` to **`2.45`**: `+0.45` from this run plus `+0.25` from an earlier UI attempt on the same contract (`SFX-2026-000203`: two partial returns of `30` and `20`, left `Active` with `50 USDC` locked). Guarantor balance `1098.40 → 1017.70 USDC`, which matches both guarantees exactly.
 
 ---
 
@@ -243,5 +297,5 @@ Balances AFTER: {'guarantor': '1248.4250000', 'landlord': '350.0000000', 'treasu
 
 ### Automated Test Suites
 
-- **Soroban Smart Contract (`contracts/safexy-guarantee`):** `27 / 27` Rust unit & property tests passing (`cargo test`).
-- **Application & Database Integration (`src/`):** `44 / 44` Vitest tests passing (`npm test`), including `src/lib/services/settlement-flows.integration.test.ts` against a real PostgreSQL instance.
+- **Soroban Smart Contract (`contracts/safexy-guarantee`):** `33 / 33` Rust unit & property tests passing (`cargo test`, re-run 2026-11-16).
+- **Application & Database Integration (`src/`):** `48` Vitest tests (`npm test`, re-run 2026-11-16): `40` unit tests pass everywhere; the `8` tests in `src/lib/services/settlement-flows.integration.test.ts` run against a real PostgreSQL instance and are skipped automatically when no database is reachable.

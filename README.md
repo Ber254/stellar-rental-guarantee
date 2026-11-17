@@ -14,6 +14,13 @@ locked amount.
 - App: Next.js (App Router) + TypeScript + Tailwind, PostgreSQL/Neon via Drizzle.
 - Product model and full context: see [`/MD`](MD/README.md).
 
+## For reviewers
+
+- Live demo (Stellar testnet, 1-click demo accounts): https://rental-guarantee-stellar.vercel.app
+- Plain-language walkthrough (Spanish): [`MD/GUIA_REVISORA.md`](MD/GUIA_REVISORA.md)
+- Verification report with every transaction hash and stellar.expert link: [`MD/VERIFICATION.md`](MD/VERIFICATION.md)
+- Screen recording of the full flow: [`MD/screenshots/demo-ui-completo.webm`](MD/screenshots/demo-ui-completo.webm)
+
 ## Lifecycle
 
 ```

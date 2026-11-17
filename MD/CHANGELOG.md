@@ -403,6 +403,20 @@ Estado on-chain verificado tras cada mecánica (`get_guarantee(2026000103)`):
 
 - Creado `MD/VERIFICATION.md` con las 24 transacciones reales firmadas de las tres corridas end-to-end (`2026000101`, `2026000102`, `2026000103`), links directos a `stellar.expert`, estados on-chain, balances de Horizon, logs de ejecución y guía para evaluadores.
 
+## 2026-11-16 — Contrato redesplegado con comisión 0,5 % y corrida completa desde la UI pública
+
+- La clave del admin del contrato anterior (`GCE5L7F…MWM7V`) no está disponible,
+  así que no se pudo ejecutar `set_fee_bps(50)`. Se desplegó el mismo código
+  con `fee_bps = 50`: `CCR3OY2DAFWFQAWHOI3XCSDRYFENUQKR5RXSLI7FB5JOEWU7S5CPJZ53`
+  (admin `GDN67WX…UL7J`, misma tesorería y mismo USDC). Vercel apunta al nuevo.
+- La evidencia de las semanas 1 y 2 sigue en el contrato anterior (5 bps) y no
+  se modifica.
+- Se recorrió en la URL pública, sólo con la UI y las cuentas demo, todo el
+  ciclo: crear, aceptar, depositar, dos devoluciones parciales, devolución
+  unilateral y extensiones con aumento y disminución. Capturas y video en
+  `MD/screenshots/ui-run/`, hashes en `MD/VERIFICATION.md` (Run 5).
+- Guía para la revisora en lenguaje simple: `MD/GUIA_REVISORA.md`.
+
 ## 2026-11-11 — Guía "cómo cargar USDC" y chequeo previo al depósito
 
 Pregunta recurrente de los primeros contactos comerciales: *"¿cómo hacen para
